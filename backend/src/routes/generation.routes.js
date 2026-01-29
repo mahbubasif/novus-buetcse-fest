@@ -33,6 +33,14 @@ router.post('/', generationController.generateMaterial);
 router.get('/history', generationController.getGeneratedMaterials);
 
 /**
+ * @route   GET /api/generate/:id/pdf
+ * @desc    Export generated material as PDF
+ * @access  Public
+ * @param   id - Generated material ID
+ */
+router.get('/:id/pdf', generationController.exportMaterialAsPDF);
+
+/**
  * @route   GET /api/generate/:id
  * @desc    Get a specific generated material by ID
  * @access  Public
