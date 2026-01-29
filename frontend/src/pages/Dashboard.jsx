@@ -16,6 +16,7 @@ import { Input } from '../components/ui/Input';
 import MaterialCard from '../components/MaterialCard';
 import UploadModal from '../components/UploadModal';
 import { getMaterials, deleteMaterial } from '../services/api';
+import { useRole } from '../contexts/RoleContext';
 
 const categoryFilters = [
   { value: '', label: 'All Materials', icon: FileText },
@@ -24,6 +25,7 @@ const categoryFilters = [
 ];
 
 export function Dashboard() {
+  const { isAdmin } = useRole();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -87,16 +89,20 @@ export function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Course Materials</h1>
           <p className="text-gray-500 mt-1">
-            Manage and organize your learning resources
+            {isAdmin 
+              ? 'Manage and organize your learning resources' 
+              : 'Browse and explore your learning resources'}
           </p>
         </div>
-        <Button
-          icon={Plus}
-          onClick={() => setIsUploadModalOpen(true)}
-          className="shadow-lg shadow-indigo-500/25"
-        >
-          Upload Material
-        </Button>
+        {isAdmin && (
+          <Button
+            icon={Plus}
+            onClick={() => setIsUploadModalOpen(true)}
+            className="shadow-lg shadow-indigo-500/25"
+          >
+            Upload Material
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -252,11 +258,15 @@ export function Dashboard() {
           <p className="text-gray-500 text-center max-w-sm mb-6">
             {searchQuery || categoryFilter
               ? 'Try adjusting your search or filter criteria.'
-              : 'Get started by uploading your first course material.'}
+              : isAdmin 
+                ? 'Get started by uploading your first course material.'
+                : 'No materials available yet. Check back later!'}
           </p>
-          <Button icon={Plus} onClick={() => setIsUploadModalOpen(true)}>
-            Upload Material
-          </Button>
+          {isAdmin && (
+            <Button icon={Plus} onClick={() => setIsUploadModalOpen(true)}>
+              Upload Material
+            </Button>
+          )}
         </div>
       )}
 
@@ -273,19 +283,21 @@ export function Dashboard() {
             <MaterialCard
               key={material.id}
               material={material}
-              onDelete={handleDelete}
+              onDelete={isAdmin ? handleDelete : null}
             />
           ))}
         </div>
       )}
 
-      {/* Floating Upload Button (Mobile) */}
-      <button
-        onClick={() => setIsUploadModalOpen(true)}
-        className="fixed bottom-6 right-6 lg:hidden w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg shadow-indigo-500/40 flex items-center justify-center transition-all hover:scale-105"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
+      {/* Floating Upload Button (Mobile) - Admin Only */}
+      {isAdmin && (
+        <button
+          onClick={() => setIsUploadModalOpen(true)}
+          className="fixed bottom-6 right-6 lg:hidden w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg shadow-indigo-500/40 flex items-center justify-center transition-all hover:scale-105"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
 
       {/* Upload Modal */}
       <UploadModal

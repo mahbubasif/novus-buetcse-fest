@@ -1,5 +1,6 @@
 import React from 'react';
-import { Search, Bell, User } from 'lucide-react';
+import { Search, Bell } from 'lucide-react';
+import { RoleSwitcher } from '../RoleSwitcher';
 
 export function Navbar({ title = 'Dashboard' }) {
   return (
@@ -33,16 +34,8 @@ export function Navbar({ title = 'Dashboard' }) {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
           </button>
 
-          {/* User Menu */}
-          <button className="flex items-center gap-3 p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
-            </div>
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-medium text-gray-700">Student</p>
-              <p className="text-xs text-gray-500">BUET CSE</p>
-            </div>
-          </button>
+          {/* Role Switcher */}
+          <RoleSwitcher />
         </div>
       </div>
     </header>
