@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Plus,
-  Filter,
   Search,
   LayoutGrid,
   List,
@@ -10,16 +9,24 @@ import {
   FileText,
   RefreshCw,
   AlertCircle,
+  Sparkles,
+  TrendingUp,
+  Clock,
+  ArrowRight,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Badge } from '../components/ui/badge';
+import { Skeleton } from '../components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import MaterialCard from '../components/MaterialCard';
 import UploadModal from '../components/UploadModal';
 import { getMaterials, deleteMaterial } from '../services/api';
 import { useRole } from '../contexts/RoleContext';
+import { cn } from '../lib/utils';
 
 const categoryFilters = [
-  { value: '', label: 'All Materials', icon: FileText },
+  { value: '', label: 'All', icon: FileText },
   { value: 'Theory', label: 'Theory', icon: BookOpen },
   { value: 'Lab', label: 'Lab', icon: FlaskConical },
 ];
@@ -83,207 +90,244 @@ export function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Course Materials</h1>
-          <p className="text-gray-500 mt-1">
-            {isAdmin 
-              ? 'Manage and organize your learning resources' 
-              : 'Browse and explore your learning resources'}
-          </p>
+    <div className="space-y-8">
+      {/* Hero Header Section */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-purple-500/5 to-pink-500/10 p-8 border border-primary/10">
+        <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="gap-1">
+                <Sparkles className="w-3 h-3" />
+                AI-Powered
+              </Badge>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              Course Materials
+            </h1>
+            <p className="text-muted-foreground max-w-lg">
+              {isAdmin 
+                ? 'Manage and organize your learning resources with intelligent categorization' 
+                : 'Explore curated learning materials powered by AI for enhanced understanding'}
+            </p>
+          </div>
+          {isAdmin && (
+            <Button
+              variant="gradient"
+              size="lg"
+              icon={Plus}
+              onClick={() => setIsUploadModalOpen(true)}
+              className="shadow-xl"
+            >
+              Upload Material
+            </Button>
+          )}
         </div>
-        {isAdmin && (
-          <Button
-            icon={Plus}
-            onClick={() => setIsUploadModalOpen(true)}
-            className="shadow-lg shadow-indigo-500/25"
-          >
-            Upload Material
-          </Button>
-        )}
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-indigo-50">
-              <FileText className="w-6 h-6 text-indigo-600" />
+        <Card className="group relative overflow-hidden border-none bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+              <FileText className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500">Total Materials</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-sm font-medium text-blue-100">Total Materials</p>
+              <p className="text-3xl font-bold">{stats.total}</p>
             </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-blue-50">
-              <BookOpen className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Theory</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.theory}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-emerald-50">
-              <FlaskConical className="w-6 h-6 text-emerald-600" />
+            <TrendingUp className="w-12 h-12 absolute right-4 bottom-4 opacity-10" />
+          </CardContent>
+        </Card>
+        
+        <Card className="group relative overflow-hidden border-none bg-gradient-to-br from-violet-500 to-violet-600 text-white">
+          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+              <BookOpen className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500">Lab</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.lab}</p>
+              <p className="text-sm font-medium text-violet-100">Theory</p>
+              <p className="text-3xl font-bold">{stats.theory}</p>
             </div>
-          </div>
-        </div>
+            <BookOpen className="w-12 h-12 absolute right-4 bottom-4 opacity-10" />
+          </CardContent>
+        </Card>
+        
+        <Card className="group relative overflow-hidden border-none bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+              <FlaskConical className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-emerald-100">Lab</p>
+              <p className="text-3xl font-bold">{stats.lab}</p>
+            </div>
+            <FlaskConical className="w-12 h-12 absolute right-4 bottom-4 opacity-10" />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-          {/* Search */}
-          <form onSubmit={handleSearch} className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search materials by title..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all"
-              />
+      <Card className="border-none shadow-lg">
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            {/* Search */}
+            <form onSubmit={handleSearch} className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search materials by title..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-input rounded-xl bg-background focus:ring-2 focus:ring-ring focus:border-transparent focus:outline-none transition-all text-sm"
+                />
+              </div>
+            </form>
+
+            {/* Category Filters */}
+            <Tabs value={categoryFilter} onValueChange={setCategoryFilter}>
+              <TabsList className="bg-muted/50">
+                {categoryFilters.map((filter) => {
+                  const Icon = filter.icon;
+                  return (
+                    <TabsTrigger
+                      key={filter.value}
+                      value={filter.value}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="hidden sm:inline">{filter.label}</span>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </Tabs>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  "p-2.5 rounded-md transition-all",
+                  viewMode === 'grid'
+                    ? 'bg-background text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "p-2.5 rounded-md transition-all",
+                  viewMode === 'list'
+                    ? 'bg-background text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <List className="w-4 h-4" />
+              </button>
             </div>
-          </form>
 
-          {/* Category Filters */}
-          <div className="flex items-center gap-2">
-            {categoryFilters.map((filter) => {
-              const Icon = filter.icon;
-              const isActive = categoryFilter === filter.value;
-              return (
-                <button
-                  key={filter.value}
-                  onClick={() => setCategoryFilter(filter.value)}
-                  className={`
-                    flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
-                    transition-all duration-200
-                    ${
-                      isActive
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }
-                  `}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{filter.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+            {/* Refresh */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={fetchMaterials}
+              disabled={loading}
+              className={cn(loading && "animate-spin")}
             >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <List className="w-4 h-4" />
-            </button>
+              <RefreshCw className="w-4 h-4" />
+            </Button>
           </div>
-
-          {/* Refresh */}
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={RefreshCw}
-            onClick={fetchMaterials}
-            disabled={loading}
-          >
-            Refresh
-          </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Error State */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
-          <button
-            onClick={fetchMaterials}
-            className="ml-auto text-sm font-medium underline hover:no-underline"
-          >
-            Try again
-          </button>
-        </div>
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-2 rounded-full bg-destructive/10">
+              <AlertCircle className="w-5 h-5 text-destructive" />
+            </div>
+            <span className="text-destructive flex-1">{error}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchMaterials}
+              className="border-destructive/30 text-destructive hover:bg-destructive/10"
+            >
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* Loading State */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-            <p className="text-sm text-gray-500">Loading materials...</p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {[...Array(8)].map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <div className="p-6 space-y-4">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+                <div className="flex gap-2 pt-2">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
       )}
 
       {/* Empty State */}
       {!loading && !error && materials.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 px-4">
-          <div className="w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-            <FileText className="w-10 h-10 text-gray-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">
-            No materials found
-          </h3>
-          <p className="text-gray-500 text-center max-w-sm mb-6">
-            {searchQuery || categoryFilter
-              ? 'Try adjusting your search or filter criteria.'
-              : isAdmin 
-                ? 'Get started by uploading your first course material.'
-                : 'No materials available yet. Check back later!'}
-          </p>
-          {isAdmin && (
-            <Button icon={Plus} onClick={() => setIsUploadModalOpen(true)}>
-              Upload Material
-            </Button>
-          )}
-        </div>
+        <Card className="border-dashed border-2">
+          <CardContent className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6">
+              <FileText className="w-10 h-10 text-primary" />
+            </div>
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              No materials found
+            </h3>
+            <p className="text-muted-foreground text-center max-w-sm mb-6">
+              {searchQuery || categoryFilter
+                ? 'Try adjusting your search or filter criteria.'
+                : isAdmin 
+                  ? 'Get started by uploading your first course material.'
+                  : 'No materials available yet. Check back later!'}
+            </p>
+            {isAdmin && (
+              <Button variant="gradient" icon={Plus} onClick={() => setIsUploadModalOpen(true)}>
+                Upload Your First Material
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Materials Grid */}
       {!loading && !error && materials.length > 0 && (
         <div
-          className={
+          className={cn(
             viewMode === 'grid'
               ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5'
               : 'flex flex-col gap-4'
-          }
+          )}
         >
           {materials.map((material) => (
             <MaterialCard
               key={material.id}
               material={material}
               onDelete={isAdmin ? handleDelete : null}
+              viewMode={viewMode}
             />
           ))}
         </div>
@@ -293,7 +337,7 @@ export function Dashboard() {
       {isAdmin && (
         <button
           onClick={() => setIsUploadModalOpen(true)}
-          className="fixed bottom-6 right-6 lg:hidden w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg shadow-indigo-500/40 flex items-center justify-center transition-all hover:scale-105"
+          className="fixed bottom-6 right-6 lg:hidden w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full shadow-xl shadow-purple-500/40 flex items-center justify-center transition-all hover:scale-110 z-50"
         >
           <Plus className="w-6 h-6" />
         </button>

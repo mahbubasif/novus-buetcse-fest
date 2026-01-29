@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, FileText, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { X, Upload, FileText, AlertCircle, CheckCircle, Loader2, Sparkles } from 'lucide-react';
 import { Button } from './ui/Button';
-import { Input, Select } from './ui/Input';
+import { Input } from './ui/Input';
 import { uploadMaterial } from '../services/api';
+import { cn } from '../lib/utils';
 
 const categoryOptions = [
   { value: 'Theory', label: 'Theory' },
@@ -159,22 +160,27 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity animate-fade-in"
         onClick={handleClose}
       />
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-lg transform bg-white rounded-2xl shadow-2xl transition-all">
+        <div className="relative w-full max-w-lg transform bg-card rounded-2xl shadow-2xl transition-all animate-fade-in border border-border">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Upload Material</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Add a new course material</p>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20">
+                <Upload className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">Upload Material</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">Add a new course material</p>
+              </div>
             </div>
             <button
               onClick={handleClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -184,11 +190,12 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
             {/* File Drop Zone */}
             <div
-              className={`
-                relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer
-                ${dragActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'}
-                ${file ? 'border-emerald-500 bg-emerald-50' : ''}
-              `}
+              className={cn(
+                "relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer",
+                dragActive && 'border-primary bg-primary/5',
+                !dragActive && !file && 'border-input hover:border-muted-foreground/50',
+                file && 'border-emerald-500 bg-emerald-500/5'
+              )}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
@@ -205,12 +212,12 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
               
               {file ? (
                 <div className="flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-emerald-600" />
+                  <div className="w-14 h-14 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <FileText className="w-7 h-7 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm font-medium text-foreground">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
                       {(file.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
@@ -220,21 +227,21 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
                       e.stopPropagation();
                       setFile(null);
                     }}
-                    className="text-xs text-red-600 hover:text-red-700"
+                    className="text-xs text-destructive hover:text-destructive/80 font-medium"
                   >
                     Remove file
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                    <Upload className="w-6 h-6 text-gray-400" />
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center group-hover:bg-muted/80 transition-colors">
+                    <Upload className="w-7 h-7 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-700">
-                      Drop your file here, or <span className="text-indigo-600">browse</span>
+                    <p className="text-sm font-medium text-foreground">
+                      Drop your file here, or <span className="text-primary">browse</span>
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       PDF, code files, or text files (max 50MB)
                     </p>
                   </div>
@@ -252,14 +259,22 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
             />
 
             {/* Category Select */}
-            <Select
-              label="Category"
-              options={categoryOptions}
-              placeholder="Select a category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-            />
+            <div className="w-full">
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Category
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-4 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                required
+              >
+                <option value="">Select a category</option>
+                {categoryOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
 
             {/* Tags Input */}
             <Input
@@ -271,7 +286,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
 
             {/* Error Message */}
             {error && (
-              <div className="flex items-center gap-2 p-3 text-sm text-red-700 bg-red-50 rounded-lg">
+              <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{error}</span>
               </div>
@@ -279,7 +294,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
 
             {/* Success Message */}
             {success && (
-              <div className="flex items-center gap-2 p-3 text-sm text-emerald-700 bg-emerald-50 rounded-lg">
+              <div className="flex items-center gap-2 p-3 text-sm text-emerald-700 bg-emerald-50 rounded-lg border border-emerald-200">
                 <CheckCircle className="w-4 h-4 flex-shrink-0" />
                 <span>Material uploaded successfully!</span>
               </div>
@@ -289,7 +304,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
             <div className="flex gap-3 pt-2">
               <Button
                 type="button"
-                variant="secondary"
+                variant="outline"
                 onClick={handleClose}
                 className="flex-1"
               >
@@ -297,12 +312,22 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
               </Button>
               <Button
                 type="submit"
-                variant="primary"
+                variant="gradient"
                 loading={loading}
                 disabled={!file || !title || !category}
                 className="flex-1"
               >
-                {loading ? 'Uploading...' : 'Upload Material'}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Upload Material
+                  </>
+                )}
               </Button>
             </div>
           </form>
