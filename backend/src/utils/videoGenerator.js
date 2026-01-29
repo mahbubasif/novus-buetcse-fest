@@ -7,13 +7,23 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const fs = require('fs');
 const path = require('path');
-const { generateTextGemini } = require('./gemini');
+const { generateTextGemini, generateVideoGemini } = require('./gemini');
 
 // Set FFmpeg path
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// Font path for Linux environments to prevent FFmpeg hanging
-const FONT_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+// Font path logic for different OS (Linux/Docker/macOS/Windows)
+const getFontPath = () => {
+  const candidates = [
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', // Linux/Docker typical
+    '/System/Library/Fonts/Helvetica.ttc',           // macOS
+    '/System/Library/Fonts/Supplemental/Arial.ttf',   // macOS (newer)
+    'C:\\Windows\\Fonts\\arial.ttf'                    // Windows
+  ];
+  return candidates.find(p => fs.existsSync(p)) || null;
+};
+
+const FONT_PATH = getFontPath();
 
 
 /**
@@ -54,53 +64,69 @@ const createSimpleVideo = (topic, type, outputPath, duration = 5) => {
     const bgColor = type === 'Theory' ? '#3b82f6' : '#10b981';
 
     // Verify font exists, otherwise let FFmpeg try default (which might hang, but we try)
-    const fontFile = fs.existsSync(FONT_PATH) ? FONT_PATH : null;
-    const fontOption = fontFile ? `fontfile='${fontFile}':` : '';
+    const fontFile = (FONT_PATH && fs.existsSync(FONT_PATH)) ? FONT_PATH : null;
+
+    // Build filter chain manually to avoid connectivity issues
+    const filters = [];
+    
+    // 1. Topic text
+    filters.push({
+      filter: 'drawtext',
+      options: {
+        text: displayTopic.replace(/'/g, "\\'").replace(/:/g, "\\:"),
+        fontsize: 48,
+        fontcolor: 'white',
+        x: '(w-text_w)/2',
+        y: '(h-text_h)/2',
+        shadowcolor: 'black',
+        shadowx: 2,
+        shadowy: 2,
+        fontfile: fontFile
+      },
+      inputs: '0:v',
+      outputs: 'v1'
+    });
+
+    // 2. Type label
+    filters.push({
+      filter: 'drawtext',
+      options: {
+        text: typeLabel.replace(/'/g, "\\'"),
+        fontsize: 32,
+        fontcolor: 'white@0.8',
+        x: '(w-text_w)/2',
+        y: 50,
+        fontfile: fontFile
+      },
+      inputs: 'v1',
+      outputs: 'v2'
+    });
+
+    // 3. Branding
+    filters.push({
+      filter: 'drawtext',
+      options: {
+        text: 'NOVUS - AI Learning Platform',
+        fontsize: 24,
+        fontcolor: 'white@0.6',
+        x: '(w-text_w)/2',
+        y: 'h-60',
+        fontfile: fontFile
+      },
+      inputs: 'v2',
+      outputs: 'out' // Final output
+    });
+
+    // Clean options (remove undefined keys)
+    filters.forEach(f => {
+      Object.keys(f.options).forEach(key => f.options[key] === undefined || f.options[key] === null ? delete f.options[key] : {});
+    });
 
     ffmpeg()
       .input(`color=c=${bgColor.replace('#', '0x')}:s=1280x720:r=30:d=${duration}`)
       .inputFormat('lavfi')
-      .complexFilter([
-        // Add text overlay with topic
-        {
-          filter: 'drawtext',
-          options: {
-            text: displayTopic.replace(/'/g, "\\'").replace(/:/g, "\\:"),
-            fontsize: 48,
-            fontcolor: 'white',
-            x: '(w-text_w)/2',
-            y: '(h-text_h)/2',
-            shadowcolor: 'black',
-            shadowx: 2,
-            shadowy: 2,
-            fontfile: fontFile || undefined
-          }
-        },
-        // Add type label at top
-        {
-          filter: 'drawtext',
-          options: {
-            text: typeLabel.replace(/'/g, "\\'"),
-            fontsize: 32,
-            fontcolor: 'white@0.8',
-            x: '(w-text_w)/2',
-            y: 50,
-            fontfile: fontFile || undefined
-          }
-        },
-        // Add "NOVUS" branding at bottom
-        {
-          filter: 'drawtext',
-          options: {
-            text: 'NOVUS - AI Learning Platform',
-            fontsize: 24,
-            fontcolor: 'white@0.6',
-            x: '(w-text_w)/2',
-            y: 'h-60',
-            fontfile: fontFile || undefined
-          }
-        }
-      ])
+      .complexFilter(filters, 'out') // Specify the final map 'out'
+
       .outputOptions([
         '-c:v libx264',
         '-preset ultrafast',
@@ -183,6 +209,31 @@ const createQuickVideoSummary = async (content, topic, type, keyPoints) => {
     console.log(`Topic: ${topic}`);
     console.log(`Type: ${type}`);
 
+    // ==========================================
+    // NEW: VEO GENERATION (Primary)
+    // ==========================================
+    try {
+      console.log('✨ Attempting generation with Veo...');
+      // Requesting 5 seconds specifically
+      const veoPrompt = `Create a high-quality, abstract, educational video (5 seconds) strictly about: "${topic}". Context: ${type} Learning.`;
+      await generateVideoGemini(veoPrompt, videoPath);
+      
+      const stats = fs.statSync(videoPath);
+      return {
+        success: true,
+        videoPath: videoPath,
+        size: stats.size,
+        sizeFormatted: `${(stats.size / 1024).toFixed(1)} KB`,
+        duration: 5,
+        metadata: { topic, type, timestamp, method: 'Veo' },
+      };
+    } catch (veoErr) {
+      console.log('ℹ️ Veo generation skipped, using FFmpeg fallback.');
+    }
+
+    // ==========================================
+    // FALLBACK: FFmpeg Generation
+    // ==========================================
     // EXPLICIT USE OF GEMINI: Generate a short snappy summary for the video text
     let videoText = topic; // Fallback
     try {
