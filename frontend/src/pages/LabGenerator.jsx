@@ -11,7 +11,9 @@ import {
   Copy,
   Check,
   Clock,
-  Filter
+  Filter,
+  Download,
+  FileText
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
@@ -41,6 +43,7 @@ export function LabGenerator() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
   
   // History state
   const [history, setHistory] = useState([]);
@@ -102,6 +105,42 @@ export function LabGenerator() {
       await navigator.clipboard.writeText(generatedContent.content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!generatedContent?.id) return;
+    
+    setDownloadingPDF(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/generate/${generatedContent.id}/pdf`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/pdf',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to download PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${generatedContent.topic?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'material'}_${generatedContent.type.toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('PDF download error:', err);
+      setError('Failed to download PDF. Please try again.');
+    } finally {
+      setDownloadingPDF(false);
     }
   };
 
@@ -213,22 +252,58 @@ export function LabGenerator() {
                 Generated on {formatDate(generatedContent.created_at)}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={copied ? Check : Copy}
-              onClick={handleCopyContent}
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={copied ? Check : Copy}
+                onClick={handleCopyContent}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={downloadingPDF ? Loader2 : Download}
+                onClick={handleDownloadPDF}
+                disabled={downloadingPDF}
+                className={downloadingPDF ? 'animate-pulse' : ''}
+              >
+                {downloadingPDF ? 'Generating...' : 'Download PDF'}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {/* Sources Used */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Sources Used:</h3>
+            <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-indigo-600" />
+                Sources Used
+              </h3>
+              
+              {/* Uploaded Materials (Primary Sources) */}
+              {generatedContent.sources_used?.materials && generatedContent.sources_used.materials.length > 0 && (
+                <div className="mb-3">
+                  <h4 className="text-xs font-semibold text-indigo-700 mb-2">📚 Uploaded Course Materials (Primary):</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {generatedContent.sources_used.materials.map((material, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-indigo-700 rounded-md text-xs font-medium border border-indigo-200 shadow-sm"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        <span className="font-semibold">{material.title}</span>
+                        <span className="text-indigo-500">({material.category})</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* External Source */}
               <div className="flex flex-wrap gap-2">
-                {generatedContent.sources_used?.internal && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium">
+                {generatedContent.sources_used?.internal && !generatedContent.sources_used?.materials?.length && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-indigo-700 rounded-md text-xs font-medium border border-indigo-200">
                     <CheckCircle className="w-3.5 h-3.5" />
                     Internal RAG Materials
                   </span>
@@ -238,13 +313,17 @@ export function LabGenerator() {
                     href={generatedContent.sources_used?.wikipedia_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium hover:bg-blue-200 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-blue-700 rounded-md text-xs font-medium hover:bg-blue-50 transition-colors border border-blue-200"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    Wikipedia
+                    Wikipedia (Supplementary)
                   </a>
                 )}
               </div>
+              
+              {(!generatedContent.sources_used?.internal && !generatedContent.sources_used?.external) && (
+                <p className="text-xs text-gray-500 italic">Generated from AI knowledge base</p>
+              )}
             </div>
 
             {/* Rendered Content */}

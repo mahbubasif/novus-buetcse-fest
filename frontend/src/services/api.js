@@ -133,6 +133,18 @@ export const getGeneratedById = async (id) => {
 };
 
 /**
+ * Export generated material as PDF
+ * @param {number|string} id - Generated material ID
+ * @returns {Promise} Blob response for PDF download
+ */
+export const exportGeneratedAsPDF = async (id) => {
+  const response = await api.get(`/generate/${id}/pdf`, {
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+/**
  * Process a material to generate embeddings
  * @param {number} materialId - Material ID to process
  * @returns {Promise} API response
