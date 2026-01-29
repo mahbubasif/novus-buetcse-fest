@@ -282,4 +282,36 @@ export const chatSummarize = async (params) => {
   return response.data;
 };
 
+// ==================== Auth Endpoints ====================
+
+/**
+ * Login user (student or admin)
+ * @param {string} username - User's username
+ * @param {string} password - User's password
+ * @returns {Promise} API response with user data
+ */
+export const loginUser = async (username, password) => {
+  const response = await api.post('/auth/login', { username, password });
+  return response.data;
+};
+
+/**
+ * Register new student
+ * @param {Object} userData - { username, password, fullName?, email? }
+ * @returns {Promise} API response with user data
+ */
+export const registerUser = async (userData) => {
+  const response = await api.post('/auth/register', userData);
+  return response.data;
+};
+
+/**
+ * Get current user info
+ * @returns {Promise} API response with user data
+ */
+export const getCurrentUser = async () => {
+  const response = await api.get('/auth/me');
+  return response.data;
+};
+
 export default api;

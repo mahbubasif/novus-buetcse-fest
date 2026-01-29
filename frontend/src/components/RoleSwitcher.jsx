@@ -1,6 +1,7 @@
 /**
  * Role Switcher Component
  * Dropdown to switch between Admin and Student roles
+ * Only visible for admin users
  */
 
 import React from 'react';
@@ -9,8 +10,13 @@ import { useRole } from '../contexts/RoleContext';
 import { cn } from '../lib/utils';
 
 export function RoleSwitcher() {
-  const { role, setRole, ROLES, isAdmin } = useRole();
+  const { role, setRole, ROLES, isAdmin, isActualAdmin } = useRole();
   const [isOpen, setIsOpen] = React.useState(false);
+
+  // Only show role switcher if user is actually an admin
+  if (!isActualAdmin) {
+    return null;
+  }
 
   const roles = [
     { value: ROLES.ADMIN, label: 'Admin Panel', icon: UserCog, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
