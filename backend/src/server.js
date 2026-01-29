@@ -54,6 +54,10 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Auth Routes (Authentication)
+const authRoutes = require('./routes/auth.routes');
+app.use('/api/auth', authRoutes);
+
 // CMS Routes (Content Management System)
 const cmsRoutes = require('./routes/cms.routes');
 app.use('/api/cms', cmsRoutes);
@@ -114,6 +118,11 @@ app.listen(PORT, () => {
   console.log('\n   Available endpoints:');
   console.log(`   - GET  /            (Health check)`);
   console.log(`   - GET  /health      (Health status)`);
+  console.log('\n   Auth Endpoints:');
+  console.log(`   - POST /api/auth/register      (Register student)`);
+  console.log(`   - POST /api/auth/login         (Login)`);
+  console.log(`   - GET  /api/auth/me            (Get current user)`);
+
   console.log('\n   CMS Endpoints:');
   console.log(`   - POST /api/cms/upload         (Upload material)`);
   console.log(`   - GET  /api/cms/materials      (List materials)`);

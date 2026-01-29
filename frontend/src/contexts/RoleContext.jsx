@@ -1,10 +1,11 @@
 /**
  * Role Context
  * Manages user role state (Admin/Student) for the application
- * No authentication - just UI role switching for hackathon demo
+ * Syncs with AuthContext for authenticated role-based access
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 const RoleContext = createContext();
 
@@ -14,31 +15,46 @@ export const ROLES = {
 };
 
 export function RoleProvider({ children }) {
-  // Load role from localStorage or default to student
-  const [role, setRole] = useState(() => {
-    const saved = localStorage.getItem('userRole');
-    return saved || ROLES.STUDENT;
-  });
+  const { user, isAuthenticated } = useAuth();
+  
+  // Role is now determined by the authenticated user
+  const [role, setRoleState] = useState(ROLES.STUDENT);
 
-  // Save role to localStorage whenever it changes
+  // Sync role with authenticated user
   useEffect(() => {
-    localStorage.setItem('userRole', role);
-  }, [role]);
+    if (isAuthenticated && user) {
+      setRoleState(user.role || ROLES.STUDENT);
+      localStorage.setItem('userRole', user.role || ROLES.STUDENT);
+    } else {
+      setRoleState(ROLES.STUDENT);
+      localStorage.setItem('userRole', ROLES.STUDENT);
+    }
+  }, [user, isAuthenticated]);
 
+  // Only allow role switching if user is actually an admin
   const switchRole = (newRole) => {
+    // Students cannot switch to admin role
+    if (user?.role !== ROLES.ADMIN && newRole === ROLES.ADMIN) {
+      console.warn('Students cannot access admin view');
+      return;
+    }
     if (Object.values(ROLES).includes(newRole)) {
-      setRole(newRole);
+      setRoleState(newRole);
+      localStorage.setItem('userRole', newRole);
     }
   };
 
-  const isAdmin = role === ROLES.ADMIN;
-  const isStudent = role === ROLES.STUDENT;
+  // Check if user is actually an admin (based on auth, not UI state)
+  const isActualAdmin = user?.role === ROLES.ADMIN;
+  const isAdmin = role === ROLES.ADMIN && isActualAdmin;
+  const isStudent = role === ROLES.STUDENT || !isActualAdmin;
 
   const value = {
     role,
     setRole: switchRole,
     isAdmin,
     isStudent,
+    isActualAdmin, // Can user access admin features at all?
     ROLES,
   };
 

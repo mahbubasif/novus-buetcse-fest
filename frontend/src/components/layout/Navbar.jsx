@@ -1,9 +1,19 @@
 import React from 'react';
-import { Search, Bell, Command } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Bell, Command, LogOut } from 'lucide-react';
 import { RoleSwitcher } from '../RoleSwitcher';
+import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 
 export function Navbar({ title = 'Dashboard' }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
       <div className="flex items-center justify-between h-16 px-6">
@@ -37,6 +47,20 @@ export function Navbar({ title = 'Dashboard' }) {
 
           {/* Role Switcher */}
           <RoleSwitcher />
+
+          {/* User Info & Logout */}
+          <div className="flex items-center gap-2 pl-3 border-l border-border">
+            <span className="text-sm text-muted-foreground">
+              {user?.fullName || user?.username}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </header>
