@@ -88,7 +88,7 @@ export function Chat() {
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-border">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-primary/30">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#3B82F6] to-[#60A5FA] flex items-center justify-center shadow-lg shadow-blue-500/30">
             <MessageSquare className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -123,7 +123,7 @@ export function Chat() {
                 "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center shadow-lg",
                 message.role === 'user'
                   ? 'bg-gradient-to-br from-primary to-blue-600'
-                  : 'bg-gradient-to-br from-violet-500 to-purple-600'
+                  : 'bg-gradient-to-br from-[#3B82F6] to-[#60A5FA]'
               )}
             >
               {message.role === 'user' ? (
@@ -164,7 +164,7 @@ export function Chat() {
         {/* Loading Indicator */}
         {loading && (
           <div className="flex gap-4 animate-fade-in">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#60A5FA] flex items-center justify-center shadow-lg">
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">

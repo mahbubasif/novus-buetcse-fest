@@ -13,7 +13,7 @@ export function RoleSwitcher() {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const roles = [
-    { value: ROLES.ADMIN, label: 'Admin Panel', icon: UserCog, color: 'text-violet-600', bg: 'bg-violet-100', border: 'border-violet-200' },
+    { value: ROLES.ADMIN, label: 'Admin Panel', icon: UserCog, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
     { value: ROLES.STUDENT, label: 'Student View', icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
   ];
 
@@ -27,7 +27,7 @@ export function RoleSwitcher() {
         className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all",
           isAdmin 
-            ? 'bg-violet-50 border-violet-200 hover:bg-violet-100' 
+            ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' 
             : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
         )}
       >

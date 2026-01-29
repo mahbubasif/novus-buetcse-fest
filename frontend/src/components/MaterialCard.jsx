@@ -8,12 +8,12 @@ import { cn } from '../lib/utils';
 
 const categoryStyles = {
   Theory: {
-    bg: 'bg-violet-50',
-    text: 'text-violet-700',
-    border: 'border-violet-200',
-    icon: 'text-violet-500',
-    gradient: 'from-violet-500 to-purple-600',
-    iconBg: 'bg-violet-100',
+    bg: 'bg-blue-50',
+    text: 'text-blue-700',
+    border: 'border-blue-200',
+    icon: 'text-blue-600',
+    gradient: 'from-[#3B82F6] to-[#60A5FA]',
+    iconBg: 'bg-blue-100',
   },
   Lab: {
     bg: 'bg-emerald-50',

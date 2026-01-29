@@ -44,7 +44,7 @@ export function ChatInterface({ onSendMessage, messages = [], loading = false })
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3B82F6]/20 to-[#60A5FA]/20 flex items-center justify-center mb-6">
               <Sparkles className="w-8 h-8 text-primary" />
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-2">Start a Conversation</h3>
@@ -78,7 +78,7 @@ export function ChatInterface({ onSendMessage, messages = [], loading = false })
                 "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center shadow-lg",
                 message.role === 'user'
                   ? 'bg-gradient-to-br from-primary to-blue-600'
-                  : 'bg-gradient-to-br from-violet-500 to-purple-600'
+                  : 'bg-gradient-to-br from-[#3B82F6] to-[#60A5FA]'
               )}
             >
               {message.role === 'user' ? (
@@ -125,7 +125,7 @@ export function ChatInterface({ onSendMessage, messages = [], loading = false })
         
         {loading && (
           <div className="flex gap-4 animate-fade-in">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#60A5FA] flex items-center justify-center shadow-lg">
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">

@@ -61,9 +61,9 @@ export function Search() {
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Hero Header */}
       <div className="relative text-center py-8">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-purple-500/5 to-pink-500/5 rounded-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#3B82F6]/5 to-[#60A5FA]/5 rounded-3xl" />
         <div className="relative">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary via-purple-500 to-pink-500 shadow-xl shadow-primary/30 mb-6">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#3B82F6] to-[#60A5FA] shadow-xl shadow-blue-500/30 mb-6">
             <Zap className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-foreground mb-3 tracking-tight">
@@ -78,7 +78,7 @@ export function Search() {
       {/* Search Form */}
       <form onSubmit={handleSearch} className="relative">
         <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary via-purple-500 to-pink-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-40 transition-opacity" />
+          <div className="absolute -inset-1 bg-gradient-to-r from-[#3B82F6] to-[#60A5FA] rounded-2xl blur-lg opacity-25 group-hover:opacity-40 transition-opacity" />
           <div className="relative bg-background rounded-2xl border-2 border-input focus-within:border-primary transition-all shadow-lg">
             <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-muted-foreground" />
             <input
@@ -198,10 +198,10 @@ export function Search() {
                           <div className="flex items-center gap-3 mb-3">
                             <div className={cn(
                               "p-2 rounded-lg",
-                              result.material_category === 'Theory' ? 'bg-violet-100' : 'bg-emerald-100'
+                              result.material_category === 'Theory' ? 'bg-blue-100' : 'bg-emerald-100'
                             )}>
                               {result.material_category === 'Theory' ? (
-                                <BookOpen className={cn("w-5 h-5", result.material_category === 'Theory' ? 'text-violet-600' : 'text-emerald-600')} />
+                                <BookOpen className={cn("w-5 h-5", result.material_category === 'Theory' ? 'text-blue-600' : 'text-emerald-600')} />
                               ) : (
                                 <FlaskConical className="w-5 h-5 text-emerald-600" />
                               )}

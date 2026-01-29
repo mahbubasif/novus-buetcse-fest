@@ -23,6 +23,8 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          blue: "var(--primary-blue)",
+          hover: "var(--primary-blue-hover)",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -48,6 +50,28 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+          bg: "var(--success-green-bg)",
+          text: "var(--success-green-text)",
+        },
+        status: {
+          cold: {
+            bg: "var(--status-cold-bg)",
+            text: "var(--status-cold-text)",
+          },
+          warm: {
+            bg: "var(--status-warm-bg)",
+            text: "var(--status-warm-text)",
+          },
+          hot: {
+            bg: "var(--status-hot-bg)",
+            text: "var(--status-hot-text)",
+          },
+        },
+        sidebar: "var(--sidebar-bg)",
+        surface: "var(--surface-white)",
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -124,10 +124,10 @@ export function LabGenerator() {
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-orange-500/10 p-8 border border-purple-500/20">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#3B82F6]/10 to-[#60A5FA]/5 p-8 border border-[#3B82F6]/20">
         <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
         <div className="relative flex items-start gap-6">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center shadow-xl shadow-purple-500/30 flex-shrink-0">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#3B82F6] to-[#60A5FA] flex items-center justify-center shadow-xl shadow-blue-500/30 flex-shrink-0">
             <Wand2 className="w-10 h-10 text-white" />
           </div>
           <div className="flex-1">
@@ -233,14 +233,14 @@ export function LabGenerator() {
         <Card className="border-none shadow-lg overflow-hidden">
           <div className={cn(
             "h-1.5 bg-gradient-to-r",
-            generatedContent.type === 'Theory' ? 'from-violet-500 to-purple-600' : 'from-emerald-500 to-teal-600'
+            generatedContent.type === 'Theory' ? 'from-[#3B82F6] to-[#60A5FA]' : 'from-emerald-500 to-emerald-600'
           )} />
           <CardHeader className="flex flex-row items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 {generatedContent.type === 'Theory' ? (
-                  <div className="p-2 rounded-lg bg-violet-100">
-                    <BookOpen className="w-5 h-5 text-violet-600" />
+                  <div className="p-2 rounded-lg bg-blue-100">
+                    <BookOpen className="w-5 h-5 text-blue-600" />
                   </div>
                 ) : (
                   <div className="p-2 rounded-lg bg-emerald-100">

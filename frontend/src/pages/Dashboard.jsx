@@ -92,7 +92,7 @@ export function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-purple-500/5 to-pink-500/10 p-8 border border-primary/10">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#3B82F6]/10 to-[#60A5FA]/5 p-8 border border-[#3B82F6]/20">
         <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">
@@ -127,7 +127,7 @@ export function Dashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="group relative overflow-hidden border-none bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+        <Card className="group relative overflow-hidden border-none bg-gradient-to-br from-[#3B82F6] to-[#2563EB] text-white">
           <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-6 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -141,14 +141,14 @@ export function Dashboard() {
           </CardContent>
         </Card>
         
-        <Card className="group relative overflow-hidden border-none bg-gradient-to-br from-violet-500 to-violet-600 text-white">
+        <Card className="group relative overflow-hidden border-none bg-gradient-to-br from-[#3B82F6] to-[#60A5FA] text-white">
           <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-6 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
               <BookOpen className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-violet-100">Theory</p>
+              <p className="text-sm font-medium text-blue-100">Theory</p>
               <p className="text-3xl font-bold">{stats.theory}</p>
             </div>
             <BookOpen className="w-12 h-12 absolute right-4 bottom-4 opacity-10" />
@@ -337,7 +337,7 @@ export function Dashboard() {
       {isAdmin && (
         <button
           onClick={() => setIsUploadModalOpen(true)}
-          className="fixed bottom-6 right-6 lg:hidden w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full shadow-xl shadow-purple-500/40 flex items-center justify-center transition-all hover:scale-110 z-50"
+          className="fixed bottom-6 right-6 lg:hidden w-14 h-14 bg-gradient-to-r from-[#3B82F6] to-[#60A5FA] text-white rounded-full shadow-xl shadow-blue-500/40 flex items-center justify-center transition-all hover:scale-110 z-50"
         >
           <Plus className="w-6 h-6" />
         </button>
