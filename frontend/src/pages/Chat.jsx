@@ -1,15 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Trash2, Copy, Check, MessageSquare } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Trash2, Copy, Check, MessageSquare, BookOpen, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Badge } from '../components/ui/badge';
 import { cn } from '../lib/utils';
+import { sendChatMessage, clearChatHistory, startNewConversation } from '../services/api';
 
 const suggestedQuestions = [
   'Explain the concept of backpropagation',
   'What are the differences between supervised and unsupervised learning?',
-  'Generate a study guide for neural networks',
-  'Summarize the key points of machine learning',
+  'Generate theory notes on neural networks',
+  'Summarize machine learning fundamentals',
+  'Search for materials about deep learning',
+  'Create a lab exercise on data preprocessing',
 ];
 
 export function Chat() {
@@ -18,12 +21,15 @@ export function Chat() {
       id: 1,
       role: 'assistant',
       content:
-        "Hello! I'm your AI learning assistant. I can help you understand your course materials, generate study guides, and answer questions. What would you like to learn about today?",
+        "Hello! I'm your AI learning assistant. I can help you:\n\n• **Search** course materials\n• **Explain** concepts from your materials\n• **Summarize** content\n• **Generate** theory notes or lab exercises\n\nWhat would you like to learn about today?",
+      sources: [],
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [conversationId, setConversationId] = useState(null);
+  const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -48,17 +54,43 @@ export function Chat() {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setLoading(true);
+    setError(null);
 
-    // Simulate AI response (replace with actual API call)
-    setTimeout(() => {
-      const aiMessage = {
+    try {
+      const response = await sendChatMessage(userMessage.content, conversationId);
+      
+      if (response.success) {
+        // Store conversation ID for follow-up messages
+        if (response.conversationId) {
+          setConversationId(response.conversationId);
+        }
+
+        const aiMessage = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: response.message,
+          sources: response.sources || [],
+          intent: response.intent,
+          hasContext: response.hasContext,
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        throw new Error(response.error || 'Failed to get response');
+      }
+    } catch (err) {
+      console.error('Chat error:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to send message');
+      // Add error message to chat
+      const errorMessage = {
         id: Date.now() + 1,
         role: 'assistant',
-        content: `I understand you're asking about "${userMessage.content}". Based on your course materials, here's what I found:\n\nThis is a simulated response. In the actual implementation, this would connect to your RAG-powered backend to provide contextual answers based on your uploaded course materials.\n\nWould you like me to explain any specific aspect in more detail?`,
+        content: `Sorry, I encountered an error: ${err.response?.data?.error || err.message || 'Unknown error'}. Please try again.`,
+        isError: true,
       };
-      setMessages((prev) => [...prev, aiMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const handleSuggestionClick = (question) => {
@@ -72,13 +104,25 @@ export function Chat() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const clearChat = () => {
+  const clearChat = async () => {
+    // Clear on backend if we have a conversation
+    if (conversationId) {
+      try {
+        await clearChatHistory(conversationId);
+      } catch (err) {
+        console.error('Failed to clear chat on server:', err);
+      }
+    }
+    
+    setConversationId(null);
+    setError(null);
     setMessages([
       {
         id: Date.now(),
         role: 'assistant',
         content:
           "Chat cleared! I'm ready to help you with your course materials. What would you like to learn about?",
+        sources: [],
       },
     ]);
   };
@@ -123,39 +167,77 @@ export function Chat() {
                 "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center shadow-lg",
                 message.role === 'user'
                   ? 'bg-gradient-to-br from-primary to-blue-600'
+                  : message.isError
+                  ? 'bg-gradient-to-br from-red-500 to-red-600'
                   : 'bg-gradient-to-br from-[#3B82F6] to-[#60A5FA]'
               )}
             >
               {message.role === 'user' ? (
                 <User className="w-5 h-5 text-white" />
+              ) : message.isError ? (
+                <AlertCircle className="w-5 h-5 text-white" />
               ) : (
                 <Bot className="w-5 h-5 text-white" />
               )}
             </div>
 
             {/* Message Content */}
-            <div
-              className={cn(
-                "group relative max-w-[75%] px-4 py-3 rounded-2xl",
-                message.role === 'user'
-                  ? 'bg-gradient-to-r from-primary to-blue-600 text-white rounded-tr-sm'
-                  : 'bg-card border border-border text-foreground rounded-tl-sm shadow-sm'
-              )}
-            >
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+            <div className="flex flex-col max-w-[75%]">
+              <div
+                className={cn(
+                  "group relative px-4 py-3 rounded-2xl",
+                  message.role === 'user'
+                    ? 'bg-gradient-to-r from-primary to-blue-600 text-white rounded-tr-sm'
+                    : message.isError
+                    ? 'bg-red-50 border border-red-200 text-red-800 rounded-tl-sm shadow-sm'
+                    : 'bg-card border border-border text-foreground rounded-tl-sm shadow-sm'
+                )}
+              >
+                <div className="whitespace-pre-wrap text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert">
+                  {message.content}
+                </div>
+                
+                {/* Copy Button */}
+                {message.role === 'assistant' && !message.isError && (
+                  <button
+                    onClick={() => handleCopy(message.content, message.id)}
+                    className="absolute -right-10 top-2 p-1.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity rounded-lg hover:bg-muted"
+                  >
+                    {copiedId === message.id ? (
+                      <Check className="w-4 h-4 text-emerald-500" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+              </div>
               
-              {/* Copy Button */}
-              {message.role === 'assistant' && (
-                <button
-                  onClick={() => handleCopy(message.content, message.id)}
-                  className="absolute -right-10 top-2 p-1.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity rounded-lg hover:bg-muted"
-                >
-                  {copiedId === message.id ? (
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </button>
+              {/* Sources - show for assistant messages with sources */}
+              {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <BookOpen className="w-3 h-3" />
+                    Sources:
+                  </span>
+                  {message.sources.map((source, idx) => (
+                    <Badge 
+                      key={idx} 
+                      variant="secondary" 
+                      className="text-xs py-0.5 px-2"
+                    >
+                      {source.title} ({source.similarity}%)
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              
+              {/* Intent badge for assistant messages */}
+              {message.role === 'assistant' && message.intent && !message.isError && (
+                <div className="mt-1">
+                  <Badge variant="outline" className="text-xs capitalize">
+                    {message.intent.replace('_', ' ')}
+                  </Badge>
+                </div>
               )}
             </div>
           </div>
@@ -185,7 +267,7 @@ export function Chat() {
       {messages.length <= 2 && (
         <Card className="border-dashed mb-4">
           <CardContent className="p-4">
-            <p className="text-xs font-medium text-muted-foreground mb-3">✨ Suggested questions:</p>
+            <p className="text-xs font-medium text-muted-foreground mb-3">✨ Try asking:</p>
             <div className="flex flex-wrap gap-2">
               {suggestedQuestions.map((question) => (
                 <button

@@ -195,14 +195,78 @@ export const searchMaterials = async (query) => {
   return response.data;
 };
 
+// ==================== Chat Endpoints (Part 5) ====================
+
 /**
- * Send a chat message
+ * Send a chat message and get AI response
  * @param {string} message - User message
- * @param {Array} history - Chat history
+ * @param {string} conversationId - Optional conversation ID for context
  * @returns {Promise} API response with AI reply
  */
-export const sendChatMessage = async (message, history = []) => {
-  const response = await api.post('/chat', { message, history });
+export const sendChatMessage = async (message, conversationId = null) => {
+  const response = await api.post('/chat', { message, conversationId });
+  return response.data;
+};
+
+/**
+ * Start a new conversation
+ * @returns {Promise} API response with new conversation ID
+ */
+export const startNewConversation = async () => {
+  const response = await api.post('/chat/new');
+  return response.data;
+};
+
+/**
+ * Get conversation history
+ * @param {string} conversationId - Conversation ID
+ * @returns {Promise} API response with conversation history
+ */
+export const getChatHistory = async (conversationId) => {
+  const response = await api.get(`/chat/history/${conversationId}`);
+  return response.data;
+};
+
+/**
+ * Clear/delete a conversation
+ * @param {string} conversationId - Conversation ID
+ * @returns {Promise} API response
+ */
+export const clearChatHistory = async (conversationId) => {
+  const response = await api.delete(`/chat/history/${conversationId}`);
+  return response.data;
+};
+
+/**
+ * Quick search course materials via chat
+ * @param {string} query - Search query
+ * @param {number} limit - Maximum results
+ * @returns {Promise} API response with search results
+ */
+export const chatSearch = async (query, limit = 5) => {
+  const response = await api.post('/chat/search', { query, limit });
+  return response.data;
+};
+
+/**
+ * Generate material through chat interface
+ * @param {string} topic - Topic to generate
+ * @param {string} type - 'Theory' or 'Lab'
+ * @param {string} conversationId - Optional conversation ID
+ * @returns {Promise} API response with generated content
+ */
+export const chatGenerate = async (topic, type, conversationId = null) => {
+  const response = await api.post('/chat/generate', { topic, type, conversationId });
+  return response.data;
+};
+
+/**
+ * Summarize a material or topic via chat
+ * @param {Object} params - { materialId?: number, query?: string }
+ * @returns {Promise} API response with summary
+ */
+export const chatSummarize = async (params) => {
+  const response = await api.post('/chat/summarize', params);
   return response.data;
 };
 
