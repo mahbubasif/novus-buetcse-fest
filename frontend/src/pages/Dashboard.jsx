@@ -13,12 +13,21 @@ import {
   TrendingUp,
   Clock,
   ArrowRight,
+  FileScan,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../components/ui/dialog';
 import MaterialCard from '../components/MaterialCard';
 import UploadModal from '../components/UploadModal';
 import { getMaterials, deleteMaterial } from '../services/api';
@@ -40,6 +49,9 @@ export function Dashboard() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [ocrResult, setOcrResult] = useState(null);
+  const [isOcrResultOpen, setIsOcrResultOpen] = useState(false);
+  const [isOcrExpanded, setIsOcrExpanded] = useState(false);
 
   const fetchMaterials = async () => {
     setLoading(true);
@@ -79,8 +91,13 @@ export function Dashboard() {
     }
   };
 
-  const handleUploadSuccess = () => {
+  const handleUploadSuccess = (response) => {
     fetchMaterials();
+    if (response?.data?.metadata?.handwritten) {
+      setOcrResult(response.data.content_text);
+      setIsOcrExpanded(false);
+      setIsOcrResultOpen(true);
+    }
   };
 
   const stats = {
@@ -112,15 +129,26 @@ export function Dashboard() {
             </p>
           </div>
           {isAdmin && (
-            <Button
-              variant="gradient"
-              size="lg"
-              icon={Plus}
-              onClick={() => setIsUploadModalOpen(true)}
-              className="shadow-xl"
-            >
-              Upload Material
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                size="lg"
+                icon={FileScan}
+                onClick={() => setIsUploadModalOpen(true)}
+                className="shadow-xl"
+              >
+                Apply OCR
+              </Button>
+              <Button
+                variant="gradient"
+                size="lg"
+                icon={Plus}
+                onClick={() => setIsUploadModalOpen(true)}
+                className="shadow-xl"
+              >
+                Upload Material
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -349,6 +377,38 @@ export function Dashboard() {
         onClose={() => setIsUploadModalOpen(false)}
         onSuccess={handleUploadSuccess}
       />
+
+      {/* OCR Result Dialog */}
+      <Dialog open={isOcrResultOpen} onOpenChange={setIsOcrResultOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>OCR Result</DialogTitle>
+             <DialogDescription>
+                Digitized content from your uploaded image.
+             </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 p-4 bg-muted rounded-lg whitespace-pre-wrap font-mono text-sm max-h-[50vh] overflow-y-auto">
+            {isOcrExpanded 
+              ? ocrResult 
+              : ocrResult?.slice(0, 500) + (ocrResult?.length > 500 ? '...' : '')
+            }
+          </div>
+          {ocrResult?.length > 500 && (
+            <div className="flex justify-center mt-2">
+              <Button
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsOcrExpanded(!isOcrExpanded)}
+              >
+                {isOcrExpanded ? 'Show Less' : 'View More'}
+              </Button>
+            </div>
+          )}
+          <DialogFooter>
+             <Button onClick={() => setIsOcrResultOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
