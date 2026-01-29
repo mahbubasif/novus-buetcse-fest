@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { MainLayout } from './components/layout';
-import { Dashboard, Search, Chat, MaterialView, LabGenerator } from './pages';
+import { Dashboard, Search, Chat, MaterialView, LabGenerator, NotesDigitizer } from './pages';
 import { RoleProvider } from './contexts/RoleContext';
 
 function App() {
@@ -14,6 +14,7 @@ function App() {
             <Route path="search" element={<Search />} />
             <Route path="chat" element={<Chat />} />
             <Route path="lab-generator" element={<LabGenerator />} />
+            <Route path="notes-digitizer" element={<NotesDigitizer />} />
             <Route path="materials/:id" element={<MaterialView />} />
             <Route path="settings" element={<ComingSoon title="Settings" />} />
             <Route path="help" element={<ComingSoon title="Help Center" />} />

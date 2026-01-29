@@ -63,6 +63,10 @@ app.use('/api/rag', ragRoutes);
 const generationRoutes = require('./routes/generation.routes');
 app.use('/api/generate', generationRoutes);
 
+// Digitization Routes (Handwritten Notes to Digital using Gemini Vision)
+const digitizeRoutes = require('./routes/digitize.routes');
+app.use('/api/digitize', digitizeRoutes);
+
 // Legacy routes for backward compatibility
 app.post('/api/process-embedding/:id', (req, res) => {
   req.url = `/api/rag/process/${req.params.id}`;

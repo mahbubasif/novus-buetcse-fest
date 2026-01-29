@@ -184,4 +184,67 @@ export const sendChatMessage = async (message, history = []) => {
   return response.data;
 };
 
+// ==================== Digitization Endpoints ====================
+
+/**
+ * Digitize handwritten notes from an image
+ * @param {File} imageFile - The image file containing handwritten notes
+ * @param {Object} options - Digitization options
+ * @param {string} options.format - Output format: 'markdown', 'latex', or 'plain'
+ * @param {string} options.subject - Subject context
+ * @param {string} options.preserveStructure - Whether to preserve structure
+ * @returns {Promise} API response with digitized content
+ */
+export const digitizeNotes = async (imageFile, options = {}) => {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  formData.append('format', options.format || 'markdown');
+  formData.append('subject', options.subject || 'general');
+  formData.append('preserveStructure', options.preserveStructure || 'true');
+
+  const response = await api.post('/digitize', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+/**
+ * Analyze handwritten notes image before digitization
+ * @param {File} imageFile - The image file to analyze
+ * @returns {Promise} API response with analysis results
+ */
+export const analyzeNotes = async (imageFile) => {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+
+  const response = await api.post('/digitize/analyze', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+/**
+ * Get history of digitized notes
+ * @param {Object} params - Query parameters (format, limit)
+ * @returns {Promise} API response with digitized notes history
+ */
+export const getDigitizedHistory = async (params = {}) => {
+  const response = await api.get('/digitize/history', { params });
+  return response.data;
+};
+
+/**
+ * Get a specific digitized note by ID
+ * @param {number|string} id - Digitized note ID
+ * @returns {Promise} API response with digitized note details
+ */
+export const getDigitizedById = async (id) => {
+  const response = await api.get(`/digitize/${id}`);
+  return response.data;
+};
+
 export default api;

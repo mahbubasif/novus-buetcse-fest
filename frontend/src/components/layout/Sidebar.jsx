@@ -11,6 +11,7 @@ import {
   HelpCircle,
   ChevronLeft,
   ChevronRight,
+  PenTool,
 } from 'lucide-react';
 
 const navigation = [
@@ -18,6 +19,7 @@ const navigation = [
   { name: 'Smart Search', href: '/search', icon: Search },
   { name: 'AI Chat', href: '/chat', icon: MessageSquare },
   { name: 'Lab Generator', href: '/lab-generator', icon: FlaskConical },
+  { name: 'Notes Digitizer', href: '/notes-digitizer', icon: PenTool },
 ];
 
 const secondaryNav = [
