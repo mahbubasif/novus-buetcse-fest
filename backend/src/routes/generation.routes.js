@@ -41,6 +41,14 @@ router.get('/history', generationController.getGeneratedMaterials);
 router.get('/:id/pdf', generationController.exportMaterialAsPDF);
 
 /**
+ * @route   POST /api/generate/:id/validate
+ * @desc    Re-validate a generated material
+ * @access  Public
+ * @param   id - Generated material ID
+ */
+router.post('/:id/validate', generationController.revalidateMaterial);
+
+/**
  * @route   GET /api/generate/:id
  * @desc    Get a specific generated material by ID
  * @access  Public

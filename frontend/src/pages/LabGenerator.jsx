@@ -13,12 +13,15 @@ import {
   Clock,
   Filter,
   Download,
-  FileText
+  FileText,
+  Shield,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Input, Select } from '../components/ui/Input';
-import { generateMaterial, getGeneratedHistory } from '../services/api';
+import { generateMaterial, getGeneratedHistory, revalidateMaterial } from '../services/api';
+import { ValidationResults } from '../components/ValidationResults';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -44,6 +47,8 @@ export function LabGenerator() {
   const [success, setSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [showValidation, setShowValidation] = useState(true);
+  const [isRevalidating, setIsRevalidating] = useState(false);
   
   // History state
   const [history, setHistory] = useState([]);
@@ -141,6 +146,32 @@ export function LabGenerator() {
       setError('Failed to download PDF. Please try again.');
     } finally {
       setDownloadingPDF(false);
+    }
+  };
+
+  const handleRevalidate = async () => {
+    if (!generatedContent?.id) return;
+    
+    setIsRevalidating(true);
+    setError('');
+    
+    try {
+      const response = await revalidateMaterial(generatedContent.id);
+      
+      // Update the generated content with new validation results
+      setGeneratedContent({
+        ...generatedContent,
+        is_validated: response.validation.overall?.passesValidation,
+        validation: response.validation,
+      });
+      
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error('Re-validation error:', err);
+      setError('Failed to re-validate content. Please try again.');
+    } finally {
+      setIsRevalidating(false);
     }
   };
 
@@ -325,6 +356,42 @@ export function LabGenerator() {
                 <p className="text-xs text-gray-500 italic">Generated from AI knowledge base</p>
               )}
             </div>
+
+            {/* Validation Results Section */}
+            {generatedContent.validation && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-indigo-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">Content Validation</h3>
+                    {generatedContent.is_validated ? (
+                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                        ✓ Validated
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Needs Review
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowValidation(!showValidation)}
+                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                  >
+                    {showValidation ? 'Hide' : 'Show'} Validation Details
+                  </button>
+                </div>
+
+                {showValidation && (
+                  <ValidationResults
+                    validation={generatedContent.validation}
+                    onRevalidate={handleRevalidate}
+                    isRevalidating={isRevalidating}
+                  />
+                )}
+              </div>
+            )}
 
             {/* Rendered Content */}
             <div className="prose prose-sm max-w-none">

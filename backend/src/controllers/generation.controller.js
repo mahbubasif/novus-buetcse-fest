@@ -6,6 +6,7 @@
 const supabase = require('../lib/supabase');
 const { getEmbedding } = require('../utils/openai');
 const { fetchWikipediaSummary } = require('../utils/externalContext');
+const { validateContent } = require('../utils/contentValidator');
 const OpenAI = require('openai');
 
 const openai = new OpenAI({
@@ -248,7 +249,21 @@ ${externalContext}
     console.log(`✅ Content generated (${generatedContent.length} characters)`);
 
     // ============================================
-    // STEP 6: Save to Database
+    // STEP 6: Validate Generated Content (Part 4)
+    // ============================================
+    console.log('🔍 Running comprehensive content validation...');
+    const validationResults = await validateContent({
+      content: generatedContent,
+      topic: topic,
+      type: type,
+      materialSources: materialSources,
+      internalContext: internalContext,
+    });
+
+    console.log(`✅ Validation complete - Score: ${validationResults.overall?.overallScore || 'N/A'}%`);
+
+    // ============================================
+    // STEP 7: Save to Database
     // ============================================
     const fullPrompt = `SYSTEM:\n${systemPrompt}\n\nUSER:\n${userPrompt}`;
 
@@ -258,35 +273,33 @@ ${externalContext}
         prompt: fullPrompt,
         output_content: generatedContent,
         type: type,
-        is_validated: false,
+        is_validated: validationResults.success && validationResults.overall?.passesValidation,
+        validation_score: validationResults.overall?.overallScore || null,
+        validation_results: validationResults,
       })
-      .select()
-      .single();
+      .select();
 
     if (saveError) {
       console.error('❌ Database save error:', saveError);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to save generated material',
-        details: saveError.message,
-        content: generatedContent, // Still return content even if save fails
-      });
+      throw new Error('Failed to save generated material');
     }
 
-    console.log(`✅ Material saved with ID: ${savedRecord.id}`);
+    console.log(`✅ Material saved with ID: ${savedRecord[0].id}`);
 
     // ============================================
-    // STEP 7: Return Response
+    // Step 8: Return Response with Validation
     // ============================================
     return res.status(201).json({
       success: true,
       message: `${type} material generated successfully`,
       data: {
-        id: savedRecord.id,
+        id: savedRecord[0].id,
         topic: topic,
         type: type,
         content: generatedContent,
-        created_at: savedRecord.created_at,
+        created_at: savedRecord[0].created_at,
+        is_validated: validationResults.success && validationResults.overall?.passesValidation,
+        validation: validationResults,
         sources_used: {
           internal: internalContext !== 'No relevant internal materials found.',
           external: wikiData.success,
@@ -449,9 +462,86 @@ const exportMaterialAsPDF = async (req, res) => {
   }
 };
 
+/**
+ * Re-validate a generated material
+ * POST /api/generate/:id/validate
+ */
+const revalidateMaterial = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🔍 Re-validating material ID: ${id}`);
+
+    // Fetch the generated material with original context
+    const { data: material, error } = await supabase
+      .from('generated_materials')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          error: 'Generated material not found',
+        });
+      }
+      throw new Error(error.message);
+    }
+
+    // Extract topic from content
+    const topicMatch = material.output_content.match(/^#\s+(.+)$/m);
+    const topic = topicMatch ? topicMatch[1] : `${material.type} Material`;
+
+    // Get material sources from validation_results if available
+    const previousValidation = material.validation_results;
+    const materialSources = previousValidation?.grounding?.materialsUsed || [];
+
+    // Run validation
+    const validationResults = await validateContent({
+      content: material.output_content,
+      topic: topic,
+      type: material.type,
+      materialSources: materialSources,
+      internalContext: '', // Not available for re-validation
+    });
+
+    // Update database with new validation results
+    const { error: updateError } = await supabase
+      .from('generated_materials')
+      .update({
+        is_validated: validationResults.success && validationResults.overall?.passesValidation,
+        validation_score: validationResults.overall?.overallScore || null,
+        validation_results: validationResults,
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    console.log(`✅ Material re-validated - Score: ${validationResults.overall?.overallScore}%`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Material re-validated successfully',
+      validation: validationResults,
+    });
+
+  } catch (error) {
+    console.error('❌ Re-validation error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to re-validate material',
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateMaterial,
   getGeneratedMaterials,
   getGeneratedMaterialById,
   exportMaterialAsPDF,
+  revalidateMaterial,
 };

@@ -145,6 +145,16 @@ export const exportGeneratedAsPDF = async (id) => {
 };
 
 /**
+ * Re-validate a generated material
+ * @param {number|string} id - Generated material ID
+ * @returns {Promise} API response with new validation results
+ */
+export const revalidateMaterial = async (id) => {
+  const response = await api.post(`/generate/${id}/validate`);
+  return response.data;
+};
+
+/**
  * Process a material to generate embeddings
  * @param {number} materialId - Material ID to process
  * @returns {Promise} API response
