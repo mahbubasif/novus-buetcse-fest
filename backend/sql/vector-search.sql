@@ -15,15 +15,13 @@ CREATE TABLE IF NOT EXISTS material_embeddings (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create index for faster similarity search
-CREATE INDEX IF NOT EXISTS idx_material_embeddings_embedding 
-ON material_embeddings 
-USING ivfflat (embedding vector_cosine_ops)
-WITH (lists = 100);
-
 -- Create index on material_id for faster lookups
 CREATE INDEX IF NOT EXISTS idx_material_embeddings_material_id 
 ON material_embeddings(material_id);
+
+-- Note: ivfflat index removed for free tier compatibility
+-- Vector search will still work, just with brute-force similarity
+-- For small datasets (hackathon), performance is still excellent!
 
 -- =====================================================
 -- match_documents function for vector similarity search

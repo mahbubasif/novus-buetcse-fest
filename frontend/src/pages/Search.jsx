@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
-import { Search as SearchIcon, Sparkles, FileText, ArrowRight, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search as SearchIcon, Sparkles, FileText, ArrowRight, Loader2, TrendingUp, AlertCircle, Zap, BookOpen, FlaskConical, Clock } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
+import { Badge } from '../components/ui/badge';
+import { Skeleton } from '../components/ui/skeleton';
+import { ragSearch } from '../services/api';
+import { cn } from '../lib/utils';
 
 export function Search() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [error, setError] = useState('');
+  const [enhanceResults, setEnhanceResults] = useState(true);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -15,150 +22,230 @@ export function Search() {
 
     setLoading(true);
     setSearched(true);
+    setError('');
     
-    // Simulate API call (replace with actual RAG search)
-    setTimeout(() => {
-      setResults([
-        {
-          id: 1,
-          title: 'Introduction to Machine Learning',
-          excerpt: 'Machine learning is a subset of artificial intelligence that focuses on building systems that learn from data...',
-          relevance: 95,
-          category: 'Theory',
-        },
-        {
-          id: 2,
-          title: 'Neural Networks Fundamentals',
-          excerpt: 'Neural networks are computing systems inspired by biological neural networks that constitute animal brains...',
-          relevance: 87,
-          category: 'Theory',
-        },
-        {
-          id: 3,
-          title: 'Python ML Lab Exercise',
-          excerpt: 'In this lab, we will implement a basic neural network from scratch using Python and NumPy...',
-          relevance: 72,
-          category: 'Lab',
-        },
-      ]);
+    try {
+      const response = await ragSearch(query, 0.3, 10, enhanceResults);
+      setResults(response.results || []);
+      
+      if (!response.results || response.results.length === 0) {
+        setError('No results found. Try a different query or upload more materials.');
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+      setError('Search failed. Please try again.');
+      setResults([]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    setQuery(suggestion);
+  };
+
+  const getRelevanceColor = (similarity) => {
+    if (similarity >= 0.8) return 'text-emerald-500';
+    if (similarity >= 0.6) return 'text-blue-500';
+    if (similarity >= 0.4) return 'text-amber-500';
+    return 'text-muted-foreground';
+  };
+
+  const getRelevanceBg = (similarity) => {
+    if (similarity >= 0.8) return 'bg-emerald-50 border-emerald-200';
+    if (similarity >= 0.6) return 'bg-blue-50 border-blue-200';
+    if (similarity >= 0.4) return 'bg-amber-50 border-amber-200';
+    return 'bg-muted/50 border-muted';
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25 mb-4">
-          <Sparkles className="w-8 h-8 text-white" />
+      {/* Hero Header */}
+      <div className="relative text-center py-8">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#3B82F6]/5 to-[#60A5FA]/5 rounded-3xl" />
+        <div className="relative">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#3B82F6] to-[#60A5FA] shadow-xl shadow-blue-500/30 mb-6">
+            <Zap className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold text-foreground mb-3 tracking-tight">
+            Smart Search
+          </h1>
+          <p className="text-muted-foreground max-w-lg mx-auto text-lg">
+            Use AI-powered semantic search to discover insights across all your course materials instantly
+          </p>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Smart Search</h1>
-        <p className="text-gray-500 max-w-md mx-auto">
-          Use AI-powered semantic search to find relevant content across all your course materials
-        </p>
       </div>
 
       {/* Search Form */}
       <form onSubmit={handleSearch} className="relative">
-        <div className="relative">
-          <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ask anything about your course materials..."
-            className="w-full pl-14 pr-32 py-5 text-lg border-2 border-gray-200 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 focus:outline-none transition-all shadow-sm"
-          />
-          <Button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className="absolute right-3 top-1/2 -translate-y-1/2"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Searching...
-              </>
-            ) : (
-              <>
-                Search
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </Button>
+        <div className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-[#3B82F6] to-[#60A5FA] rounded-2xl blur-lg opacity-25 group-hover:opacity-40 transition-opacity" />
+          <div className="relative bg-background rounded-2xl border-2 border-input focus-within:border-primary transition-all shadow-lg">
+            <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-muted-foreground" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Ask anything about your course materials..."
+              className="w-full pl-14 pr-36 py-5 text-lg bg-transparent focus:outline-none placeholder:text-muted-foreground"
+            />
+            <Button
+              type="submit"
+              disabled={loading || !query.trim()}
+              variant={query.trim() ? 'gradient' : 'secondary'}
+              size="lg"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  Search
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </form>
 
       {/* Search Suggestions */}
       {!searched && (
         <div className="flex flex-wrap justify-center gap-2">
-          {['What is machine learning?', 'Explain neural networks', 'Python data structures'].map(
-            (suggestion) => (
-              <button
-                key={suggestion}
-                onClick={() => setQuery(suggestion)}
-                className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                {suggestion}
-              </button>
-            )
-          )}
+          <span className="text-sm text-muted-foreground mr-2">Try:</span>
+          {[
+            'What is AI?',
+            'Explain algorithms',
+            'Python programming',
+            'Data structures',
+            'Machine learning basics'
+          ].map((suggestion) => (
+            <button
+              key={suggestion}
+              onClick={() => handleSuggestionClick(suggestion)}
+              className="px-4 py-2 text-sm text-foreground bg-secondary hover:bg-secondary/80 rounded-full transition-all hover:scale-105"
+            >
+              <Sparkles className="w-3 h-3 inline mr-1.5 text-primary" />
+              {suggestion}
+            </button>
+          ))}
         </div>
+      )}
+
+      {/* Error Message */}
+      {error && searched && !loading && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-2 rounded-full bg-amber-100">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <span className="text-amber-800">{error}</span>
+          </CardContent>
+        </Card>
       )}
 
       {/* Results */}
       {searched && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
-              {loading ? 'Searching...' : `${results.length} results found`}
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-semibold text-foreground">
+                {loading ? 'Searching...' : `${results.length} result${results.length !== 1 ? 's' : ''}`}
+              </h2>
+              {!loading && results.length > 0 && (
+                <Badge variant="secondary" className="gap-1">
+                  <Clock className="w-3 h-3" />
+                  Instant
+                </Badge>
+              )}
+            </div>
+            {results.length > 0 && !loading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <TrendingUp className="w-4 h-4" />
+                <span>Sorted by relevance</span>
+              </div>
+            )}
           </div>
 
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent>
-                    <div className="h-6 bg-gray-200 rounded w-3/4 mb-3" />
-                    <div className="h-4 bg-gray-200 rounded w-full mb-2" />
-                    <div className="h-4 bg-gray-200 rounded w-2/3" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {results.map((result) => (
-                <Card key={result.id} hover className="cursor-pointer">
-                  <CardContent>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FileText className="w-5 h-5 text-indigo-500" />
-                          <h3 className="font-semibold text-gray-900">{result.title}</h3>
-                          <span
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                              result.category === 'Theory'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-emerald-100 text-emerald-700'
-                            }`}
-                          >
-                            {result.category}
-                          </span>
-                        </div>
-                        <p className="text-gray-600 text-sm line-clamp-2">{result.excerpt}</p>
+                <Card key={i}>
+                  <CardContent className="p-6">
+                    <div className="flex gap-4">
+                      <Skeleton className="w-12 h-12 rounded-xl" />
+                      <div className="flex-1 space-y-3">
+                        <Skeleton className="h-5 w-1/2" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-indigo-600">{result.relevance}%</div>
-                        <div className="text-xs text-gray-500">relevance</div>
-                      </div>
+                      <Skeleton className="w-16 h-16 rounded-xl" />
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
-          )}
+          ) : results.length > 0 ? (
+            <div className="space-y-4">
+              {results.map((result, idx) => (
+                <Link key={idx} to={`/materials/${result.material_id}`}>
+                  <Card className="group cursor-pointer transition-all hover:shadow-lg hover:border-primary/30 overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className="flex">
+                        <div className="flex-1 p-6">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={cn(
+                              "p-2 rounded-lg",
+                              result.material_category === 'Theory' ? 'bg-blue-100' : 'bg-emerald-100'
+                            )}>
+                              {result.material_category === 'Theory' ? (
+                                <BookOpen className={cn("w-5 h-5", result.material_category === 'Theory' ? 'text-blue-600' : 'text-emerald-600')} />
+                              ) : (
+                                <FlaskConical className="w-5 h-5 text-emerald-600" />
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                                {result.material_title}
+                              </h3>
+                              <Badge variant={result.material_category === 'Theory' ? 'default' : 'success'} className="text-xs mt-1">
+                                {result.material_category}
+                              </Badge>
+                            </div>
+                          </div>
+                          {result.ai_summary && (
+                            <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <Sparkles className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                <p className="text-sm text-blue-900 leading-relaxed">
+                                  {result.ai_summary}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-muted-foreground text-sm line-clamp-3 leading-relaxed">
+                            {result.chunk_text}
+                          </p>
+                        </div>
+                        <div className={cn(
+                          "w-28 flex flex-col items-center justify-center border-l",
+                          getRelevanceBg(result.similarity)
+                        )}>
+                          <div className={cn("text-3xl font-bold", getRelevanceColor(result.similarity))}>
+                            {Math.round(result.similarity * 100)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">match</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
     </div>

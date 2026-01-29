@@ -18,6 +18,8 @@ CREATE TABLE public.generated_materials (
   type text CHECK (type = ANY (ARRAY['Theory'::text, 'Lab'::text])),
   is_validated boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT now(),
+  validation_score integer CHECK (validation_score IS NULL OR validation_score >= 0 AND validation_score <= 100),
+  validation_results jsonb,
   CONSTRAINT generated_materials_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.material_embeddings (
@@ -40,4 +42,14 @@ CREATE TABLE public.materials (
   uploaded_by uuid,
   CONSTRAINT materials_pkey PRIMARY KEY (id),
   CONSTRAINT materials_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_profiles (
+  id uuid NOT NULL,
+  email text,
+  full_name text,
+  role text DEFAULT 'student'::text CHECK (role = ANY (ARRAY['admin'::text, 'student'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
