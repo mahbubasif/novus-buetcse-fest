@@ -92,10 +92,11 @@ export const healthCheck = async () => {
  * @param {string} query - Search query
  * @param {number} threshold - Similarity threshold (0-1)
  * @param {number} limit - Maximum number of results
+ * @param {boolean} enhance - Whether to enhance results with AI summaries
  * @returns {Promise} API response with search results
  */
-export const ragSearch = async (query, threshold = 0.5, limit = 10) => {
-  const response = await api.post('/rag/search', { query, threshold, limit });
+export const ragSearch = async (query, threshold = 0.5, limit = 10, enhance = false) => {
+  const response = await api.post('/rag/search', { query, threshold, limit, enhance });
   return response.data;
 };
 

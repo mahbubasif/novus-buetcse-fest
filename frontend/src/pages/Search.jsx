@@ -14,6 +14,7 @@ export function Search() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState('');
+  const [enhanceResults, setEnhanceResults] = useState(true);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -24,7 +25,7 @@ export function Search() {
     setError('');
     
     try {
-      const response = await ragSearch(query, 0.3, 10);
+      const response = await ragSearch(query, 0.3, 10, enhanceResults);
       setResults(response.results || []);
       
       if (!response.results || response.results.length === 0) {
@@ -215,6 +216,16 @@ export function Search() {
                               </Badge>
                             </div>
                           </div>
+                          {result.ai_summary && (
+                            <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <Sparkles className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                <p className="text-sm text-blue-900 leading-relaxed">
+                                  {result.ai_summary}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                           <p className="text-muted-foreground text-sm line-clamp-3 leading-relaxed">
                             {result.chunk_text}
                           </p>

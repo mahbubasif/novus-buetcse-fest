@@ -67,7 +67,7 @@ const generateMaterial = async (req, res) => {
         const materialIds = [...new Set(ragResults.map(r => r.material_id))];
         const { data: materials } = await supabase
           .from('materials')
-          .select('id, title, category, file_name')
+          .select('id, title, category, file_url')
           .in('id', materialIds);
 
         materialSources = materials || [];
@@ -311,7 +311,7 @@ ${externalContext}
           materials: materialSources.map(m => ({
             title: m.title,
             category: m.category,
-            filename: m.file_name
+            filename: m.file_url ? m.file_url.split('/').pop() : null
           })),
         },
       },

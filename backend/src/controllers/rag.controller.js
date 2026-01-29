@@ -140,7 +140,7 @@ const processMaterial = async (req, res) => {
  * POST /api/rag/search
  */
 const search = async (req, res) => {
-  const { query, threshold = 0.3, limit = 10 } = req.body;
+  const { query, threshold = 0.3, limit = 10, enhance = false } = req.body;
 
   try {
     // Validate query
@@ -152,7 +152,7 @@ const search = async (req, res) => {
     }
 
     console.log(`\n🔍 Searching for: "${query}"`);
-    console.log(`   Threshold: ${threshold}, Limit: ${limit}`);
+    console.log(`   Threshold: ${threshold}, Limit: ${limit}, Enhance: ${enhance}`);
 
     // First, check if we have any embeddings at all
     const { count: embeddingCount } = await supabase
@@ -202,7 +202,7 @@ const search = async (req, res) => {
 
       const { data: materials } = await supabase
         .from('materials')
-        .select('id, title, category, file_name')
+        .select('id, title, category, file_url')
         .in('id', materialIds);
 
       const materialMap = {};
@@ -210,19 +210,65 @@ const search = async (req, res) => {
         materialMap[m.id] = m;
       });
 
-      const enrichedResults = results.map(result => ({
-        ...result,
-        material_title: materialMap[result.material_id]?.title || 'Unknown',
-        material_category: materialMap[result.material_id]?.category || 'Unknown',
-        file_name: materialMap[result.material_id]?.file_name || null,
-        similarity_percent: Math.round(result.similarity * 100),
-      }));
+      const enrichedResults = results
+        .map(result => ({
+          ...result,
+          material_title: materialMap[result.material_id]?.title || 'Unknown',
+          material_category: materialMap[result.material_id]?.category || 'Unknown',
+          file_name: materialMap[result.material_id]?.file_url ? materialMap[result.material_id].file_url.split('/').pop() : null,
+          similarity_percent: Math.round(result.similarity * 100),
+        }))
+        .filter(result => result.material_title !== 'Unknown' && result.material_category !== 'Unknown');
+
+      // Optional: Enhance results with LLM-generated context-aware snippets
+      let finalResults = enrichedResults;
+      if (enhance && enrichedResults.length > 0) {
+        try {
+          const OpenAI = require('openai');
+          const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+          console.log('🤖 Enhancing results with AI summaries...');
+
+          const enhancePromises = enrichedResults.slice(0, 5).map(async (result) => {
+            try {
+              const completion = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [{
+                  role: 'system',
+                  content: 'You are a helpful assistant that creates concise, relevant summaries of search results. Generate a 1-2 sentence summary that highlights why this content is relevant to the user\'s query.'
+                }, {
+                  role: 'user',
+                  content: `Query: "${query}"\n\nContent from "${result.material_title}":\n${result.chunk_text.substring(0, 500)}...\n\nCreate a brief, relevant summary:`
+                }],
+                temperature: 0.7,
+                max_tokens: 100,
+              });
+
+              return {
+                ...result,
+                ai_summary: completion.choices[0].message.content.trim()
+              };
+            } catch (err) {
+              console.warn('Failed to enhance result:', err.message);
+              return result;
+            }
+          });
+
+          const enhanced = await Promise.all(enhancePromises);
+          // Merge enhanced results with remaining unenhanced results
+          finalResults = [...enhanced, ...enrichedResults.slice(5)];
+          console.log('✅ Enhanced first 5 results with AI summaries');
+        } catch (enhanceError) {
+          console.warn('⚠️ Enhancement failed, returning standard results:', enhanceError.message);
+        }
+      }
 
       return res.status(200).json({
         success: true,
         query: query,
-        count: enrichedResults.length,
-        results: enrichedResults,
+        count: finalResults.length,
+        results: finalResults,
+        enhanced: enhance,
       });
     }
 
