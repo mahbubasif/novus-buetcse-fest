@@ -16,7 +16,11 @@ import {
   Zap,
   ArrowRight,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  Video,
+  Download,
+  Play,
+  X
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -25,7 +29,7 @@ import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { ValidationResults } from '../components/ValidationResults';
-import { generateMaterial, getGeneratedHistory, revalidateMaterial } from '../services/api';
+import { generateMaterial, getGeneratedHistory, revalidateMaterial, generateVideoSummary } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -54,6 +58,11 @@ export function LabGenerator() {
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [showValidation, setShowValidation] = useState(true);
   const [isRevalidating, setIsRevalidating] = useState(false);
+  
+  // Video generation states
+  const [generatingVideo, setGeneratingVideo] = useState(false);
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   
   // History state
   const [history, setHistory] = useState([]);
@@ -178,6 +187,50 @@ export function LabGenerator() {
     } finally {
       setIsRevalidating(false);
     }
+  };
+
+  const handleGenerateVideo = async () => {
+    if (!generatedContent?.id) return;
+    
+    setGeneratingVideo(true);
+    setError('');
+    
+    try {
+      console.log('Generating video for material ID:', generatedContent.id);
+      
+      const videoBlob = await generateVideoSummary(generatedContent.id);
+      
+      // Create object URL from blob
+      const url = URL.createObjectURL(videoBlob);
+      setVideoUrl(url);
+      setShowVideoPlayer(true);
+      
+      console.log('Video generated successfully');
+    } catch (err) {
+      console.error('Video generation error:', err);
+      setError('Failed to generate video summary. Please try again.');
+    } finally {
+      setGeneratingVideo(false);
+    }
+  };
+
+  const handleCloseVideo = () => {
+    if (videoUrl) {
+      URL.revokeObjectURL(videoUrl);
+      setVideoUrl(null);
+    }
+    setShowVideoPlayer(false);
+  };
+
+  const handleDownloadVideo = () => {
+    if (!videoUrl || !generatedContent) return;
+    
+    const a = document.createElement('a');
+    a.href = videoUrl;
+    a.download = `${generatedContent.topic?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'material'}_video_summary.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const formatDate = (dateString) => {
@@ -453,6 +506,87 @@ export function LabGenerator() {
                 >
                   {generatedContent.content}
                 </ReactMarkdown>
+              )}
+            </div>
+
+            {/* Video Generation Section */}
+            <div className="mt-8 pt-6 border-t border-border">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-purple-100">
+                    <Video className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Video Summary</h3>
+                    <p className="text-sm text-muted-foreground">Generate an AI-narrated video summary of this content</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleGenerateVideo}
+                  disabled={generatingVideo}
+                  variant="outline"
+                  className="gap-2 border-purple-200 hover:bg-purple-50 hover:border-purple-300"
+                >
+                  {generatingVideo ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating Video...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" />
+                      Generate Video Summary
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Video Player Modal */}
+              {showVideoPlayer && videoUrl && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden">
+                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-500 to-purple-600">
+                      <div className="flex items-center gap-2 text-white">
+                        <Video className="w-5 h-5" />
+                        <h3 className="font-semibold">Video Summary</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={handleDownloadVideo}
+                          variant="ghost"
+                          size="sm"
+                          className="text-white hover:bg-white/20"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          onClick={handleCloseVideo}
+                          variant="ghost"
+                          size="sm"
+                          className="text-white hover:bg-white/20"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="p-6 bg-gray-50">
+                      <video
+                        controls
+                        autoPlay
+                        className="w-full rounded-lg shadow-lg"
+                        src={videoUrl}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-800">
+                          <strong>💡 Tip:</strong> This video summary was generated using AI text-to-speech 
+                          (Gemini TTS) to create an audio narration of the content.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </CardContent>

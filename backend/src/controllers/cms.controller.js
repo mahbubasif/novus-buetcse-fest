@@ -7,6 +7,7 @@ const supabase = require('../lib/supabase');
 const pdfParse = require('pdf-parse');
 const { getEmbedding } = require('../utils/openai');
 const { splitIntoChunks } = require('../utils/chunker');
+const { isImageFile, isScannableFile, processHandwrittenNotes } = require('../utils/handwrittenOCR');
 
 // Supported text/code file extensions for direct text extraction
 const TEXT_EXTENSIONS = ['.js', '.py', '.txt', '.md', '.c', '.cpp', '.h', '.hpp', '.java', '.ts', '.jsx', '.tsx', '.json', '.xml', '.html', '.css', '.sql', '.sh', '.yaml', '.yml'];
@@ -148,13 +149,89 @@ const uploadMaterial = async (req, res) => {
     // STEP 3: Text Extraction (The "Brain" part)
     // ============================================
     let contentText = '';
+    let isHandwritten = false;
+    let digitizationMetadata = null;
+
     try {
-      contentText = await extractTextFromFile(
-        file.buffer,
-        file.mimetype,
-        file.originalname
-      );
-      console.log(`📖 Extracted ${contentText.length} characters of text`);
+      // Check if file is an image (potentially handwritten notes)
+      if (isImageFile(file.mimetype, file.originalname)) {
+        console.log('🖼️ Image detected - processing handwritten notes...');
+
+        try {
+          // Process handwritten notes with Gemini Vision
+          const ocrResult = await processHandwrittenNotes(
+            file.buffer,
+            file.mimetype,
+            category
+          );
+
+          if (ocrResult.success && ocrResult.text) {
+            contentText = ocrResult.text;
+            isHandwritten = true;
+            digitizationMetadata = {
+              format: ocrResult.format,
+              sourceType: ocrResult.sourceType,
+              quality: ocrResult.quality,
+              processedBy: ocrResult.metadata.processedBy,
+              model: ocrResult.metadata.model,
+            };
+
+            console.log(`✅ Handwritten notes digitized successfully!`);
+            console.log(`   📊 Quality: ${ocrResult.quality.confidence}`);
+            console.log(`   📝 Words: ${ocrResult.quality.wordCount}`);
+            console.log(`   🔢 Has formulas: ${ocrResult.quality.hasFormulas ? 'Yes' : 'No'}`);
+            console.log(`   💻 Has code: ${ocrResult.quality.hasCode ? 'Yes' : 'No'}`);
+          } else {
+            console.warn('⚠️ No text extracted from image, treating as regular image');
+          }
+        } catch (ocrError) {
+          console.error('⚠️ Handwritten OCR failed, treating as regular image:', ocrError.message);
+          // Continue with empty content - image will still be stored
+        }
+      } else {
+        // Regular file processing (PDF, text, code)
+        contentText = await extractTextFromFile(
+          file.buffer,
+          file.mimetype,
+          file.originalname
+        );
+        console.log(`📖 Extracted ${contentText.length} characters of text`);
+
+        // If PDF extraction returned very little/no text, it might be a scanned handwritten PDF
+        if (file.mimetype === 'application/pdf' && contentText.trim().length < 100) {
+          console.log('📄 PDF appears to be scanned/handwritten (low text extraction)');
+          console.log('   Attempting OCR with Gemini Vision...');
+
+          try {
+            const ocrResult = await processHandwrittenNotes(
+              file.buffer,
+              file.mimetype,
+              category
+            );
+
+            if (ocrResult.success && ocrResult.text && ocrResult.text.length > contentText.length) {
+              console.log(`✅ OCR successful! Extracted ${ocrResult.text.length} characters`);
+              contentText = ocrResult.text;
+              isHandwritten = true;
+              digitizationMetadata = {
+                format: ocrResult.format,
+                sourceType: 'scanned-pdf',
+                quality: ocrResult.quality,
+                processedBy: ocrResult.metadata.processedBy,
+                model: ocrResult.metadata.model,
+              };
+
+              console.log(`   📊 Quality: ${ocrResult.quality.confidence}`);
+              console.log(`   📝 Words: ${ocrResult.quality.wordCount}`);
+              console.log(`   🔢 Has formulas: ${ocrResult.quality.hasFormulas ? 'Yes' : 'No'}`);
+              console.log(`   💻 Has code: ${ocrResult.quality.hasCode ? 'Yes' : 'No'}`);
+            }
+          } catch (ocrError) {
+            console.error('⚠️ PDF OCR failed, keeping original extraction:', ocrError.message);
+            // Keep the original (potentially empty) contentText
+          }
+        }
+      }
 
     } catch (extractionError) {
       console.error('⚠️ Text extraction failed:', extractionError);
@@ -183,6 +260,12 @@ const uploadMaterial = async (req, res) => {
       parsedMetadata.mimetype = file.mimetype;
       parsedMetadata.size = file.size;
       parsedMetadata.uploadedAt = new Date().toISOString();
+
+      // Add digitization metadata if handwritten
+      if (isHandwritten && digitizationMetadata) {
+        parsedMetadata.handwritten = true;
+        parsedMetadata.digitization = digitizationMetadata;
+      }
 
       const { data: dbData, error: dbError } = await supabase
         .from('materials')
@@ -229,7 +312,9 @@ const uploadMaterial = async (req, res) => {
     // ============================================
     return res.status(201).json({
       success: true,
-      message: 'Material uploaded successfully!',
+      message: isHandwritten
+        ? 'Handwritten notes uploaded and digitized successfully!'
+        : 'Material uploaded successfully!',
       data: {
         id: insertedRecord.id,
         title: insertedRecord.title,
@@ -240,6 +325,8 @@ const uploadMaterial = async (req, res) => {
         metadata: insertedRecord.metadata,
         created_at: insertedRecord.created_at,
         embedding_processing: contentText.length > 50 ? 'started' : 'skipped',
+        handwritten: isHandwritten,
+        digitization: isHandwritten ? digitizationMetadata : undefined,
       },
     });
 

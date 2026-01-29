@@ -12,10 +12,19 @@ import {
   Copy,
   Check,
   Loader2,
+  PenTool,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { getMaterialById } from '../services/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import 'katex/dist/katex.min.css';
 
 export function MaterialView() {
   const { id } = useParams();
@@ -88,6 +97,8 @@ export function MaterialView() {
   const isTheory = material.category === 'Theory';
   const CategoryIcon = isTheory ? BookOpen : FlaskConical;
   const tags = material.metadata?.tags || [];
+  const isHandwritten = material.metadata?.handwritten || false;
+  const digitizationData = material.metadata?.digitization;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -124,6 +135,12 @@ export function MaterialView() {
                 >
                   {material.category}
                 </span>
+                {isHandwritten && (
+                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700 flex items-center gap-1">
+                    <PenTool className="w-3 h-3" />
+                    Handwritten
+                  </span>
+                )}
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-3">{material.title}</h1>
               
@@ -180,7 +197,14 @@ export function MaterialView() {
       {material.content_text && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Extracted Content</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {isHandwritten ? 'Digitized Content' : 'Extracted Content'}
+              </h2>
+              {isHandwritten && (
+                <Sparkles className="w-4 h-4 text-purple-500" />
+              )}
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -191,11 +215,85 @@ export function MaterialView() {
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="bg-gray-50 rounded-xl p-6 max-h-[500px] overflow-y-auto">
-              <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono leading-relaxed">
-                {material.content_text}
-              </pre>
-            </div>
+            {/* Quality Metrics for Handwritten Notes */}
+            {isHandwritten && digitizationData?.quality && (
+              <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  <span className="text-sm font-semibold text-purple-900">
+                    Digitization Quality
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">Confidence:</span>
+                    <span className={`ml-2 font-semibold ${
+                      digitizationData.quality.confidence === 'high' ? 'text-green-600' :
+                      digitizationData.quality.confidence === 'medium' ? 'text-yellow-600' :
+                      'text-orange-600'
+                    }`}>
+                      {digitizationData.quality.confidence}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Words:</span>
+                    <span className="ml-2 font-semibold text-gray-900">
+                      {digitizationData.quality.wordCount}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Formulas:</span>
+                    <span className="ml-2 font-semibold text-gray-900">
+                      {digitizationData.quality.hasFormulas ? '✓' : '✗'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Code:</span>
+                    <span className="ml-2 font-semibold text-gray-900">
+                      {digitizationData.quality.hasCode ? '✓' : '✗'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Render Handwritten content with Markdown + LaTeX */}
+            {isHandwritten ? (
+              <div className="prose prose-sm md:prose-base max-w-none bg-white rounded-xl p-6 border border-gray-200">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    code({ node, inline, className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      return !inline && match ? (
+                        <SyntaxHighlighter
+                          style={vscDarkPlus}
+                          language={match[1]}
+                          PreTag="div"
+                          {...props}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}
+                >
+                  {material.content_text}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              /* Regular extracted text */
+              <div className="bg-gray-50 rounded-xl p-6 max-h-[500px] overflow-y-auto">
+                <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono leading-relaxed">
+                  {material.content_text}
+                </pre>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

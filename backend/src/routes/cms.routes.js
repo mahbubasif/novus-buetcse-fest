@@ -38,13 +38,22 @@ const upload = multer({
       'text/yaml',
       'application/xml',
       'text/xml',
+      // Image types for handwritten notes
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/heic',
+      'image/heif',
     ];
 
     // Also check by extension for better compatibility
     const allowedExtensions = [
       '.pdf', '.txt', '.md', '.py', '.js', '.jsx', '.ts', '.tsx',
       '.c', '.cpp', '.h', '.hpp', '.java', '.json', '.html', '.css',
-      '.sql', '.sh', '.yaml', '.yml', '.xml'
+      '.sql', '.sh', '.yaml', '.yml', '.xml',
+      // Image extensions for handwritten notes
+      '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'
     ];
 
     const extension = file.originalname.substring(file.originalname.lastIndexOf('.')).toLowerCase();

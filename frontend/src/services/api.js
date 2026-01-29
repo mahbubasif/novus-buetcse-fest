@@ -155,6 +155,18 @@ export const revalidateMaterial = async (id) => {
 };
 
 /**
+ * Generate video summary for a generated material
+ * @param {number|string} id - Generated material ID
+ * @returns {Promise} Blob response for video
+ */
+export const generateVideoSummary = async (id) => {
+  const response = await api.post(`/generate/${id}/video`, {}, {
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+/**
  * Process a material to generate embeddings
  * @param {number} materialId - Material ID to process
  * @returns {Promise} API response
