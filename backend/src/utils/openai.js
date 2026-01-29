@@ -1,21 +1,23 @@
 /**
  * OpenAI Utility
- * Handles embedding generation using OpenAI API
+ * Handles embedding generation using OpenAI API with Gemini fallback
  */
 
 const OpenAI = require('openai');
+const { getEmbeddingGemini } = require('./gemini');
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: 30000, // 30 second timeout
 });
 
 // Model for embeddings - 1536 dimensions
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 
 /**
- * Generate embedding vector for given text
+ * Generate embedding vector for given text with timeout and fallback
  * @param {string} text - Text to generate embedding for
- * @returns {Promise<number[]>} - 1536-dimensional embedding vector
+ * @returns {Promise<number[]>} - Embedding vector (1536 for OpenAI, 768 for Gemini)
  */
 const getEmbedding = async (text) => {
   try {
@@ -30,22 +32,36 @@ const getEmbedding = async (text) => {
       throw new Error('Text is empty after cleaning');
     }
 
-    const response = await openai.embeddings.create({
-      model: EMBEDDING_MODEL,
-      input: cleanedText,
-    });
+    // Try OpenAI with timeout
+    const response = await Promise.race([
+      openai.embeddings.create({
+        model: EMBEDDING_MODEL,
+        input: cleanedText,
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('OpenAI request timeout')), 30000)
+      )
+    ]);
 
     return response.data[0].embedding;
   } catch (error) {
     // Handle rate limiting
     if (error.status === 429) {
-      console.warn('⚠️ OpenAI rate limit hit, waiting 1 second...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.warn('⚠️ OpenAI rate limit hit, waiting 2 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
       return getEmbedding(text); // Retry once
     }
 
-    console.error('❌ OpenAI Embedding Error:', error.message);
-    throw new Error(`Failed to generate embedding: ${error.message}`);
+    // Fallback to Gemini on timeout or error
+    console.warn('⚠️ OpenAI failed, falling back to Gemini:', error.message);
+    try {
+      const geminiEmbedding = await getEmbeddingGemini(text);
+      console.log('✅ Successfully generated embedding using Gemini');
+      return geminiEmbedding;
+    } catch (geminiError) {
+      console.error('❌ Both OpenAI and Gemini failed');
+      throw new Error(`Failed to generate embedding with both providers: ${geminiError.message}`);
+    }
   }
 };
 
@@ -64,21 +80,38 @@ const getEmbeddings = async (texts) => {
       return [];
     }
 
-    const response = await openai.embeddings.create({
-      model: EMBEDDING_MODEL,
-      input: cleanedTexts,
-    });
+    const response = await Promise.race([
+      openai.embeddings.create({
+        model: EMBEDDING_MODEL,
+        input: cleanedTexts,
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('OpenAI batch request timeout')), 45000)
+      )
+    ]);
 
     return response.data.map(d => d.embedding);
   } catch (error) {
     if (error.status === 429) {
-      console.warn('⚠️ OpenAI rate limit hit, waiting 1 second...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.warn('⚠️ OpenAI rate limit hit, waiting 2 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
       return getEmbeddings(texts);
     }
 
-    console.error('❌ OpenAI Batch Embedding Error:', error.message);
-    throw new Error(`Failed to generate embeddings: ${error.message}`);
+    console.warn('⚠️ OpenAI batch failed, falling back to individual Gemini calls:', error.message);
+    // Fallback to Gemini with individual calls
+    const embeddings = [];
+    for (const text of cleanedTexts) {
+      try {
+        const embedding = await getEmbeddingGemini(text);
+        embeddings.push(embedding);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (e) {
+        console.error('❌ Failed to embed text chunk:', e.message);
+        throw e;
+      }
+    }
+    return embeddings;
   }
 };
 

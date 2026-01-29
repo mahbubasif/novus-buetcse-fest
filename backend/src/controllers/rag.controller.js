@@ -140,7 +140,7 @@ const processMaterial = async (req, res) => {
  * POST /api/rag/search
  */
 const search = async (req, res) => {
-  const { query, threshold = 0.7, limit = 5 } = req.body;
+  const { query, threshold = 0.3, limit = 10 } = req.body;
 
   try {
     // Validate query
@@ -152,6 +152,26 @@ const search = async (req, res) => {
     }
 
     console.log(`\n🔍 Searching for: "${query}"`);
+    console.log(`   Threshold: ${threshold}, Limit: ${limit}`);
+
+    // First, check if we have any embeddings at all
+    const { count: embeddingCount } = await supabase
+      .from('material_embeddings')
+      .select('*', { count: 'exact', head: true });
+
+    if (!embeddingCount || embeddingCount === 0) {
+      console.log('⚠️ No embeddings found in database. Materials need to be processed first.');
+      return res.status(200).json({
+        success: true,
+        query: query,
+        count: 0,
+        results: [],
+        message: 'No processed materials found. Please process materials first using POST /api/rag/process-all',
+        needsProcessing: true,
+      });
+    }
+
+    console.log(`📊 Total embeddings in database: ${embeddingCount}`);
 
     // Step 1: Generate embedding for the query
     const queryEmbedding = await getEmbedding(query);
@@ -182,7 +202,7 @@ const search = async (req, res) => {
 
       const { data: materials } = await supabase
         .from('materials')
-        .select('id, title, category')
+        .select('id, title, category, file_name')
         .in('id', materialIds);
 
       const materialMap = {};
@@ -194,6 +214,8 @@ const search = async (req, res) => {
         ...result,
         material_title: materialMap[result.material_id]?.title || 'Unknown',
         material_category: materialMap[result.material_id]?.category || 'Unknown',
+        file_name: materialMap[result.material_id]?.file_name || null,
+        similarity_percent: Math.round(result.similarity * 100),
       }));
 
       return res.status(200).json({
@@ -209,7 +231,7 @@ const search = async (req, res) => {
       query: query,
       count: 0,
       results: [],
-      message: 'No matching documents found. Try adjusting your query or lowering the threshold.',
+      message: 'No matching documents found. Try a different query or lower the threshold.',
     });
 
   } catch (error) {
@@ -287,18 +309,34 @@ const processAllMaterials = async (req, res) => {
       throw new Error(fetchError.message);
     }
 
+    if (!materials || materials.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No materials with content found to process',
+        results: [],
+      });
+    }
+
     // Get materials that already have embeddings
     const { data: processed } = await supabase
       .from('material_embeddings')
-      .select('material_id')
-      .limit(1000);
+      .select('material_id');
 
     const processedIds = new Set(processed?.map(p => p.material_id) || []);
 
     // Filter to unprocessed materials
     const unprocessed = materials?.filter(m => !processedIds.has(m.id)) || [];
 
-    console.log(`📊 Found ${unprocessed.length} unprocessed materials`);
+    console.log(`📊 Found ${unprocessed.length} unprocessed materials out of ${materials.length} total`);
+
+    if (unprocessed.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'All materials are already processed',
+        total_materials: materials.length,
+        results: [],
+      });
+    }
 
     const results = [];
 
@@ -311,35 +349,57 @@ const processAllMaterials = async (req, res) => {
           .eq('id', material.id)
           .single();
 
-        if (!fullMaterial?.content_text) continue;
+        if (!fullMaterial?.content_text) {
+          console.log(`⚠️ Skipping ${material.title} - no content`);
+          continue;
+        }
 
+        console.log(`\n🔄 Processing: ${material.title}`);
         const chunks = splitIntoChunks(fullMaterial.content_text, 1000, 100);
+        console.log(`   📝 ${fullMaterial.content_text.length} chars -> ${chunks.length} chunks`);
+
         const records = [];
 
-        for (const chunk of chunks) {
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          console.log(`   🧠 Embedding chunk ${i + 1}/${chunks.length}...`);
           const embedding = await getEmbedding(chunk);
           records.push({
             material_id: material.id,
             chunk_text: chunk,
             embedding: embedding,
           });
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Rate limit protection
+          await new Promise(resolve => setTimeout(resolve, 150));
         }
 
         if (records.length > 0) {
-          await supabase.from('material_embeddings').insert(records);
-          results.push({ id: material.id, title: material.title, chunks: records.length });
-          console.log(`✅ Processed: ${material.title}`);
+          const { error: insertError } = await supabase
+            .from('material_embeddings')
+            .insert(records);
+
+          if (insertError) {
+            throw new Error(insertError.message);
+          }
+
+          results.push({ id: material.id, title: material.title, chunks: records.length, status: 'success' });
+          console.log(`   ✅ Stored ${records.length} embeddings`);
         }
       } catch (error) {
         console.error(`❌ Failed to process ${material.title}:`, error.message);
-        results.push({ id: material.id, title: material.title, error: error.message });
+        results.push({ id: material.id, title: material.title, error: error.message, status: 'failed' });
       }
     }
 
+    const successCount = results.filter(r => r.status === 'success').length;
+    const totalChunks = results.filter(r => r.status === 'success').reduce((sum, r) => sum + r.chunks, 0);
+
     return res.status(200).json({
       success: true,
-      message: `Processed ${results.filter(r => !r.error).length} materials`,
+      message: `Processed ${successCount}/${unprocessed.length} materials, created ${totalChunks} embeddings`,
+      total_materials: materials.length,
+      processed_count: successCount,
+      total_chunks: totalChunks,
       results: results,
     });
 
@@ -353,9 +413,64 @@ const processAllMaterials = async (req, res) => {
   }
 };
 
+/**
+ * Get global embedding status
+ * GET /api/rag/status
+ */
+const getGlobalStatus = async (req, res) => {
+  try {
+    // Count total materials with content
+    const { data: materials, error: mErr } = await supabase
+      .from('materials')
+      .select('id, title, category')
+      .not('content_text', 'is', null);
+
+    if (mErr) throw mErr;
+
+    // Count total embeddings
+    const { count: embeddingCount, error: eErr } = await supabase
+      .from('material_embeddings')
+      .select('*', { count: 'exact', head: true });
+
+    if (eErr) throw eErr;
+
+    // Get materials with embeddings
+    const { data: processedMaterials } = await supabase
+      .from('material_embeddings')
+      .select('material_id');
+
+    const processedIds = new Set(processedMaterials?.map(p => p.material_id) || []);
+
+    // Categorize materials
+    const processed = materials?.filter(m => processedIds.has(m.id)) || [];
+    const unprocessed = materials?.filter(m => !processedIds.has(m.id)) || [];
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        total_materials: materials?.length || 0,
+        processed_materials: processed.length,
+        unprocessed_materials: unprocessed.length,
+        total_embeddings: embeddingCount || 0,
+        is_ready: unprocessed.length === 0 && (embeddingCount || 0) > 0,
+        unprocessed_list: unprocessed.map(m => ({ id: m.id, title: m.title, category: m.category })),
+      },
+    });
+
+  } catch (error) {
+    console.error('❌ Global status error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get status',
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   processMaterial,
   search,
   getStatus,
   processAllMaterials,
+  getGlobalStatus,
 };

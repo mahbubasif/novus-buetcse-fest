@@ -120,9 +120,10 @@ app.listen(PORT, () => {
   console.log(`   - GET  /api/cms/materials/:id  (Get material)`);
   console.log(`   - DELETE /api/cms/materials/:id (Delete material)`);
   console.log('\n   RAG Endpoints:');
+  console.log(`   - GET  /api/rag/status         (Global processing status)`);
   console.log(`   - POST /api/rag/process/:id    (Process embeddings)`);
   console.log(`   - POST /api/rag/process-all    (Process all materials)`);
-  console.log(`   - GET  /api/rag/status/:id     (Check processing status)`);
+  console.log(`   - GET  /api/rag/status/:id     (Check material status)`);
   console.log(`   - POST /api/rag/search         (Semantic search)`);
   console.log('\n   Generation Endpoints (AI):');
   console.log(`   - POST /api/generate           (Generate Theory/Lab)`);

@@ -5,6 +5,8 @@
 
 const supabase = require('../lib/supabase');
 const pdfParse = require('pdf-parse');
+const { getEmbedding } = require('../utils/openai');
+const { splitIntoChunks } = require('../utils/chunker');
 
 // Supported text/code file extensions for direct text extraction
 const TEXT_EXTENSIONS = ['.js', '.py', '.txt', '.md', '.c', '.cpp', '.h', '.hpp', '.java', '.ts', '.jsx', '.tsx', '.json', '.xml', '.html', '.css', '.sql', '.sh', '.yaml', '.yml'];
@@ -212,7 +214,18 @@ const uploadMaterial = async (req, res) => {
     }
 
     // ============================================
-    // STEP 5: Success Response
+    // STEP 5: Auto-process embeddings (async, non-blocking)
+    // ============================================
+    if (contentText && contentText.length > 50) {
+      // Process embeddings in the background without blocking the response
+      processEmbeddingsAsync(insertedRecord.id, contentText, insertedRecord.title)
+        .catch(err => console.error(`❌ Background embedding failed for ID ${insertedRecord.id}:`, err.message));
+
+      console.log(`🚀 Triggered background embedding generation for material ID: ${insertedRecord.id}`);
+    }
+
+    // ============================================
+    // STEP 6: Success Response
     // ============================================
     return res.status(201).json({
       success: true,
@@ -226,6 +239,7 @@ const uploadMaterial = async (req, res) => {
         content_text_preview: contentText.substring(0, 200) + (contentText.length > 200 ? '...' : ''),
         metadata: insertedRecord.metadata,
         created_at: insertedRecord.created_at,
+        embedding_processing: contentText.length > 50 ? 'started' : 'skipped',
       },
     });
 
@@ -386,6 +400,71 @@ const deleteMaterial = async (req, res) => {
       error: 'Failed to delete material.',
       details: error.message,
     });
+  }
+};
+
+/**
+ * Process embeddings asynchronously in the background
+ * @param {number} materialId - Material ID
+ * @param {string} contentText - Material content
+ * @param {string} title - Material title
+ */
+const processEmbeddingsAsync = async (materialId, contentText, title) => {
+  try {
+    console.log(`\n🔄 [Background] Processing embeddings for: "${title}" (ID: ${materialId})`);
+
+    // Split into chunks
+    const chunks = splitIntoChunks(contentText, 1000, 100);
+    console.log(`   ✂️ Split into ${chunks.length} chunks`);
+
+    if (chunks.length === 0) {
+      console.log(`   ⚠️ No chunks to process`);
+      return;
+    }
+
+    const records = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`   🧠 [${i + 1}/${chunks.length}] Generating embedding...`);
+
+      try {
+        const embedding = await getEmbedding(chunk);
+        records.push({
+          material_id: materialId,
+          chunk_text: chunk,
+          embedding: embedding,
+        });
+
+        // Small delay to avoid rate limits
+        if (i < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } catch (embError) {
+        console.error(`   ❌ Failed chunk ${i + 1}:`, embError.message);
+        // Continue with other chunks
+      }
+    }
+
+    if (records.length === 0) {
+      console.log(`   ⚠️ No embeddings generated successfully`);
+      return;
+    }
+
+    // Batch insert
+    console.log(`   💾 Storing ${records.length} embeddings...`);
+    const { error: insertError } = await supabase
+      .from('material_embeddings')
+      .insert(records);
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    console.log(`   ✅ [Background] Successfully processed ${records.length} embeddings for "${title}"`);
+  } catch (error) {
+    console.error(`   ❌ [Background] Failed to process embeddings:`, error.message);
+    throw error;
   }
 };
 

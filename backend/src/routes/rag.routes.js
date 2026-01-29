@@ -9,6 +9,12 @@ const ragController = require('../controllers/rag.controller');
 const router = express.Router();
 
 /**
+ * @route   GET /api/rag/status
+ * @desc    Get global embedding/processing status
+ */
+router.get('/status', ragController.getGlobalStatus);
+
+/**
  * @route   POST /api/rag/process/:id
  * @desc    Process a material and generate embeddings
  * @param   id - Material ID to process
@@ -23,7 +29,7 @@ router.post('/process-all', ragController.processAllMaterials);
 
 /**
  * @route   GET /api/rag/status/:id
- * @desc    Get processing status for a material
+ * @desc    Get processing status for a specific material
  * @param   id - Material ID
  */
 router.get('/status/:id', ragController.getStatus);
