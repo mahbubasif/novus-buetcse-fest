@@ -11,6 +11,43 @@ CREATE TABLE public.chat_logs (
   CONSTRAINT chat_logs_pkey PRIMARY KEY (id),
   CONSTRAINT chat_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.community_messages (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  message text NOT NULL,
+  mentions jsonb DEFAULT '[]'::jsonb,
+  user_id bigint NOT NULL,
+  username text NOT NULL,
+  full_name text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_messages_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.forum_comments (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  post_id bigint NOT NULL,
+  content text NOT NULL,
+  user_id bigint NOT NULL,
+  username text NOT NULL,
+  full_name text,
+  mentions jsonb DEFAULT '[]'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  is_ai_generated boolean DEFAULT false,
+  ai_sources jsonb,
+  CONSTRAINT forum_comments_pkey PRIMARY KEY (id),
+  CONSTRAINT forum_comments_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.forum_posts(id)
+);
+CREATE TABLE public.forum_posts (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  title text NOT NULL,
+  content text NOT NULL,
+  user_id bigint NOT NULL,
+  username text NOT NULL,
+  full_name text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  tagged_student jsonb,
+  ai_reply_generated boolean DEFAULT false,
+  CONSTRAINT forum_posts_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.generated_materials (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   prompt text,
@@ -42,6 +79,15 @@ CREATE TABLE public.materials (
   uploaded_by uuid,
   CONSTRAINT materials_pkey PRIMARY KEY (id),
   CONSTRAINT materials_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.students (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  username text NOT NULL UNIQUE,
+  password text NOT NULL,
+  full_name text,
+  email text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT students_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.user_profiles (
   id uuid NOT NULL,
