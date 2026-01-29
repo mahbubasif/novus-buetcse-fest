@@ -1,14 +1,19 @@
 /**
  * Gemini AI Utility
- * Handles embedding generation using Google's Gemini API
+ * Handles embedding generation and text-to-speech using Google's Gemini API
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
+const path = require('path');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Model for embeddings
 const EMBEDDING_MODEL = 'text-embedding-004';
+
+// Model for text-to-speech
+const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 /**
  * Generate embedding vector for given text using Gemini
@@ -72,8 +77,83 @@ const getEmbeddingsGemini = async (texts) => {
   }
 };
 
+/**
+ * Generate audio from text using Gemini TTS
+ * @param {string} text - Text to convert to speech
+ * @param {string} outputPath - Path to save the audio file
+ * @returns {Promise<string>} - Path to the generated audio file
+ */
+const generateAudioFromText = async (text, outputPath) => {
+  try {
+    console.log('🎙️ Generating audio using Gemini TTS...');
+
+    // Clean and prepare text for TTS
+    const cleanedText = text
+      .replace(/[#*`]/g, '') // Remove markdown formatting
+      .replace(/\n+/g, ' ') // Replace newlines with spaces
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+      .slice(0, 5000); // Limit text length for reasonable audio duration
+
+    if (!cleanedText) {
+      throw new Error('Text is empty after cleaning');
+    }
+
+    const model = genAI.getGenerativeModel({ model: TTS_MODEL });
+
+    const result = await model.generateContent({
+      contents: [
+        {
+          parts: [
+            {
+              text: cleanedText,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: 'Aoede', // Professional, clear voice
+            },
+          },
+        },
+      },
+    });
+
+    // Get the audio data from the response
+    const audioData = result.response.candidates[0].content.parts[0].inlineData;
+
+    if (!audioData || !audioData.data) {
+      throw new Error('No audio data received from Gemini TTS');
+    }
+
+    // Convert base64 audio to buffer and save
+    const audioBuffer = Buffer.from(audioData.data, 'base64');
+
+    // Ensure output directory exists
+    const outputDir = path.dirname(outputPath);
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    fs.writeFileSync(outputPath, audioBuffer);
+
+    console.log(`✅ Audio generated: ${outputPath} (${(audioBuffer.length / 1024).toFixed(2)} KB)`);
+    return outputPath;
+
+  } catch (error) {
+    console.error('❌ Gemini TTS Error:', error.message);
+    throw new Error(`Failed to generate audio: ${error.message}`);
+  }
+};
+
 module.exports = {
   getEmbeddingGemini,
   getEmbeddingsGemini,
+  generateAudioFromText,
   EMBEDDING_MODEL,
+  TTS_MODEL,
 };

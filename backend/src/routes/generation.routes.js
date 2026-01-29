@@ -49,6 +49,19 @@ router.get('/:id/pdf', generationController.exportMaterialAsPDF);
 router.post('/:id/validate', generationController.revalidateMaterial);
 
 /**
+ * @route   POST /api/generate/:id/video
+ * @desc    Generate video summary for a generated material
+ * @access  Public
+ * @param   id - Generated material ID
+ * @returns Video file (MP4) with audio narration and visual background
+ * 
+ * @example
+ * POST /api/generate/123/video
+ * Returns: video/mp4 stream
+ */
+router.post('/:id/video', generationController.generateVideoSummary);
+
+/**
  * @route   GET /api/generate/:id
  * @desc    Get a specific generated material by ID
  * @access  Public

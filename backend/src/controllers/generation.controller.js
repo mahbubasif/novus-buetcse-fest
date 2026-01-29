@@ -7,7 +7,11 @@ const supabase = require('../lib/supabase');
 const { getEmbedding } = require('../utils/openai');
 const { fetchWikipediaSummary } = require('../utils/externalContext');
 const { validateContent } = require('../utils/contentValidator');
+const { generateAudioFromText } = require('../utils/gemini');
+const { createVideoSummary, cleanupTempFiles } = require('../utils/videoGenerator');
 const OpenAI = require('openai');
+const fs = require('fs');
+const path = require('path');
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -538,10 +542,140 @@ const revalidateMaterial = async (req, res) => {
   }
 };
 
+/**
+ * Generate video summary for a generated material
+ * POST /api/generate/:id/video
+ */
+const generateVideoSummary = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`\n🎥 Generating video summary for material ID: ${id}`);
+
+    // Fetch the generated material
+    const { data: material, error } = await supabase
+      .from('generated_materials')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          error: 'Generated material not found',
+        });
+      }
+      throw new Error(error.message);
+    }
+
+    // Extract topic from content
+    const topicMatch = material.output_content.match(/^#\s+(.+)$/m);
+    const topic = topicMatch ? topicMatch[1] : `${material.type} Material`;
+
+    // Prepare content for video (create a summary if too long)
+    let videoContent = material.output_content;
+
+    // If content is too long, create a summary for the video
+    if (videoContent.length > 3000) {
+      console.log('📝 Content is long, creating summary for video...');
+
+      const summaryPrompt = `Create a concise audio-friendly summary (2-3 minutes when spoken) of this educational content. 
+Focus on key points and make it engaging for audio narration. Remove markdown formatting and code blocks.
+
+Content:
+${material.output_content}
+
+Create a natural, conversational summary suitable for audio narration:`;
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert at creating concise, engaging audio summaries of educational content.',
+          },
+          { role: 'user', content: summaryPrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
+
+      videoContent = completion.choices[0].message.content;
+      console.log(`✅ Summary created (${videoContent.length} characters)`);
+    }
+
+    // Clean up old temporary files before generating new video
+    cleanupTempFiles();
+
+    // Generate video
+    const videoResult = await createVideoSummary(
+      videoContent,
+      topic,
+      material.type,
+      generateAudioFromText
+    );
+
+    if (!videoResult.success) {
+      throw new Error('Video generation failed');
+    }
+
+    // Update database with video path
+    const { error: updateError } = await supabase
+      .from('generated_materials')
+      .update({
+        video_path: videoResult.videoPath,
+        video_generated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      console.warn('⚠️ Failed to update database with video path:', updateError.message);
+    }
+
+    console.log(`✅ Video summary generated successfully`);
+
+    // Return the video file
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Length', videoResult.size);
+    res.setHeader('Content-Disposition', `inline; filename="video_summary_${id}.mp4"`);
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const videoStream = fs.createReadStream(videoResult.videoPath);
+    videoStream.pipe(res);
+
+    // Clean up the video file after sending (with delay to ensure completion)
+    videoStream.on('end', () => {
+      setTimeout(() => {
+        try {
+          if (fs.existsSync(videoResult.videoPath)) {
+            fs.unlinkSync(videoResult.videoPath);
+            if (videoResult.metadata.audioPath && fs.existsSync(videoResult.metadata.audioPath)) {
+              fs.unlinkSync(videoResult.metadata.audioPath);
+            }
+            console.log('🧹 Temporary files cleaned up');
+          }
+        } catch (err) {
+          console.warn('⚠️ Failed to clean up temporary files:', err.message);
+        }
+      }, 1000);
+    });
+
+  } catch (error) {
+    console.error('❌ Video generation error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to generate video summary',
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateMaterial,
   getGeneratedMaterials,
   getGeneratedMaterialById,
   exportMaterialAsPDF,
   revalidateMaterial,
+  generateVideoSummary,
 };
