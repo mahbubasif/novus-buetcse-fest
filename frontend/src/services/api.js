@@ -99,6 +99,39 @@ export const ragSearch = async (query, threshold = 0.5, limit = 10) => {
   return response.data;
 };
 
+// ==================== Generation Endpoints (Part 3) ====================
+
+/**
+ * Generate AI learning material (Theory or Lab)
+ * @param {string} topic - The topic to generate material for
+ * @param {string} type - 'Theory' or 'Lab'
+ * @returns {Promise} API response with generated content
+ */
+export const generateMaterial = async (topic, type) => {
+  const response = await api.post('/generate', { topic, type });
+  return response.data;
+};
+
+/**
+ * Get all generated materials history
+ * @param {Object} params - Query parameters (type, limit)
+ * @returns {Promise} API response with generated materials list
+ */
+export const getGeneratedHistory = async (params = {}) => {
+  const response = await api.get('/generate/history', { params });
+  return response.data;
+};
+
+/**
+ * Get a single generated material by ID
+ * @param {number|string} id - Generated material ID
+ * @returns {Promise} API response with generated material details
+ */
+export const getGeneratedById = async (id) => {
+  const response = await api.get(`/generate/${id}`);
+  return response.data;
+};
+
 /**
  * Process a material to generate embeddings
  * @param {number} materialId - Material ID to process
