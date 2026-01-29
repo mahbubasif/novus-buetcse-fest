@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/layout';
-import { Dashboard, Search, Chat, MaterialView, LabGenerator, Login, Register } from './pages';
+import { Dashboard, Search, Chat, MaterialView, LabGenerator, Login, Register, Community } from './pages';
 import { RoleProvider } from './contexts/RoleContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
@@ -56,6 +56,7 @@ function AppRoutes() {
         <Route path="search" element={<Search />} />
         <Route path="chat" element={<Chat />} />
         <Route path="lab-generator" element={<LabGenerator />} />
+        <Route path="community" element={<Community />} />
         <Route path="materials/:id" element={<MaterialView />} />
         <Route path="settings" element={<ComingSoon title="Settings" />} />
         <Route path="help" element={<ComingSoon title="Help Center" />} />
