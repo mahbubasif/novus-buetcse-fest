@@ -4,16 +4,17 @@
  */
 
 import React from 'react';
-import { ChevronDown, UserCog, GraduationCap } from 'lucide-react';
+import { ChevronDown, UserCog, GraduationCap, Check } from 'lucide-react';
 import { useRole } from '../contexts/RoleContext';
+import { cn } from '../lib/utils';
 
 export function RoleSwitcher() {
   const { role, setRole, ROLES, isAdmin } = useRole();
   const [isOpen, setIsOpen] = React.useState(false);
 
   const roles = [
-    { value: ROLES.ADMIN, label: 'Admin Panel', icon: UserCog, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { value: ROLES.STUDENT, label: 'Student View', icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { value: ROLES.ADMIN, label: 'Admin Panel', icon: UserCog, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
+    { value: ROLES.STUDENT, label: 'Student View', icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
   ];
 
   const currentRole = roles.find(r => r.value === role);
@@ -23,20 +24,21 @@ export function RoleSwitcher() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all",
           isAdmin 
-            ? 'bg-purple-50 border-purple-200 hover:bg-purple-100' 
+            ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' 
             : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
-        }`}
+        )}
       >
-        <div className={`p-1.5 rounded-md ${currentRole.bg}`}>
-          <CurrentIcon className={`w-4 h-4 ${currentRole.color}`} />
+        <div className={cn("p-1.5 rounded-lg", currentRole.bg)}>
+          <CurrentIcon className={cn("w-4 h-4", currentRole.color)} />
         </div>
-        <div className="text-left">
-          <p className="text-xs text-gray-500 font-medium">View as</p>
-          <p className={`text-sm font-semibold ${currentRole.color}`}>{currentRole.label}</p>
+        <div className="text-left hidden sm:block">
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">View as</p>
+          <p className={cn("text-sm font-semibold -mt-0.5", currentRole.color)}>{currentRole.label}</p>
         </div>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", isOpen && 'rotate-180')} />
       </button>
 
       {isOpen && (
@@ -45,7 +47,10 @@ export function RoleSwitcher() {
             className="fixed inset-0 z-10" 
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-lg border border-gray-200 py-1 z-20">
+          <div className="absolute right-0 mt-2 w-64 rounded-xl bg-card shadow-xl border border-border py-2 z-20 animate-fade-in">
+            <div className="px-3 py-2 border-b border-border mb-1">
+              <p className="text-xs font-medium text-muted-foreground">Switch View Mode</p>
+            </div>
             {roles.map((roleOption) => {
               const Icon = roleOption.icon;
               const isSelected = role === roleOption.value;
@@ -57,23 +62,26 @@ export function RoleSwitcher() {
                     setRole(roleOption.value);
                     setIsOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${
-                    isSelected ? 'bg-gray-50' : ''
-                  }`}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-3 hover:bg-muted/50 transition-colors mx-auto",
+                    isSelected && "bg-muted/30"
+                  )}
                 >
-                  <div className={`p-2 rounded-md ${roleOption.bg}`}>
-                    <Icon className={`w-4 h-4 ${roleOption.color}`} />
+                  <div className={cn("p-2 rounded-lg", roleOption.bg, "border", roleOption.border)}>
+                    <Icon className={cn("w-4 h-4", roleOption.color)} />
                   </div>
                   <div className="text-left flex-1">
-                    <p className={`text-sm font-semibold ${isSelected ? roleOption.color : 'text-gray-700'}`}>
+                    <p className={cn("text-sm font-semibold", isSelected ? roleOption.color : 'text-foreground')}>
                       {roleOption.label}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       {roleOption.value === ROLES.ADMIN ? 'Manage content & system' : 'Learn & explore materials'}
                     </p>
                   </div>
                   {isSelected && (
-                    <div className={`w-2 h-2 rounded-full ${roleOption.bg}`} />
+                    <div className={cn("p-1 rounded-full", roleOption.bg)}>
+                      <Check className={cn("w-3 h-3", roleOption.color)} />
+                    </div>
                   )}
                 </button>
               );
