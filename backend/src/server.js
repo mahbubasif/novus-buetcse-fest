@@ -55,6 +55,19 @@ app.get('/health', (req, res) => {
 const cmsRoutes = require('./routes/cms.routes');
 app.use('/api/cms', cmsRoutes);
 
+// RAG Routes (Retrieval Augmented Generation)
+const ragRoutes = require('./routes/rag.routes');
+app.use('/api/rag', ragRoutes);
+
+// Legacy routes for backward compatibility
+app.post('/api/process-embedding/:id', (req, res) => {
+  req.url = `/api/rag/process/${req.params.id}`;
+  ragRoutes(req, res);
+});
+app.post('/api/search', (req, res, next) => {
+  require('./controllers/rag.controller').search(req, res).catch(next);
+});
+
 // ============================================
 // Error Handling
 // ============================================
@@ -90,10 +103,17 @@ app.listen(PORT, () => {
   console.log('\n   Available endpoints:');
   console.log(`   - GET  /            (Health check)`);
   console.log(`   - GET  /health      (Health status)`);
+  console.log('\n   CMS Endpoints:');
   console.log(`   - POST /api/cms/upload         (Upload material)`);
   console.log(`   - GET  /api/cms/materials      (List materials)`);
   console.log(`   - GET  /api/cms/materials/:id  (Get material)`);
   console.log(`   - DELETE /api/cms/materials/:id (Delete material)`);
+  console.log('\n   RAG Endpoints:');
+  console.log(`   - POST /api/rag/process/:id    (Process embeddings)`);
+  console.log(`   - POST /api/rag/process-all    (Process all materials)`);
+  console.log(`   - GET  /api/rag/status/:id     (Check processing status)`);
+  console.log(`   - POST /api/rag/search         (Semantic search)`);
+  console.log(`   - POST /api/search             (Legacy search endpoint)`);
   console.log('\n🚀 ================================\n');
 });
 

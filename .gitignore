@@ -38,4 +38,4 @@ coverage/
 
 # Supabase (if you run local CLI later)
 supabase/config.toml
-.supabase/
+.supabase/backend/.env
