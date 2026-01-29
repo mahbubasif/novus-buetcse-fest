@@ -18,7 +18,7 @@ const openai = new OpenAI({
 /**
  * Extract code blocks from markdown content
  * @param {string} content - Markdown content
- * @returns {Array} Array of code blocks with language info
+ * @returns {Array} Array  of code blocks with language info
  */
 const extractCodeBlocks = (content) => {
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
