@@ -6,6 +6,7 @@
 const supabase = require('../lib/supabase');
 const { getEmbedding } = require('../utils/openai');
 const { fetchWikipediaSummary } = require('../utils/externalContext');
+const { validateContent } = require('../utils/contentValidator');
 const OpenAI = require('openai');
 
 const openai = new OpenAI({
@@ -40,9 +41,10 @@ const generateMaterial = async (req, res) => {
     console.log(`\n🎨 Generating ${type} material for topic: "${topic}"`);
 
     // ============================================
-    // STEP 2: Fetch Internal Context (RAG Search)
+    // STEP 2: Fetch Internal Context (RAG Search) - PRIORITIZED
     // ============================================
     let internalContext = '';
+    let materialSources = [];
     try {
       console.log('📚 Fetching internal context from RAG...');
       const queryEmbedding = await getEmbedding(topic);
@@ -50,17 +52,30 @@ const generateMaterial = async (req, res) => {
       const { data: ragResults, error: ragError } = await supabase
         .rpc('match_documents', {
           query_embedding: queryEmbedding,
-          match_threshold: 0.5, // Lower threshold for broader context
-          match_count: 5,
+          match_threshold: 0.3, // Lower threshold to get more related content
+          match_count: 10, // Increased to get more context from uploaded materials
         });
 
       if (ragError) {
         console.warn('⚠️ RAG search failed:', ragError.message);
       } else if (ragResults && ragResults.length > 0) {
+        // Get material details for proper citations
+        const materialIds = [...new Set(ragResults.map(r => r.material_id))];
+        const { data: materials } = await supabase
+          .from('materials')
+          .select('id, title, category, file_name')
+          .in('id', materialIds);
+
+        materialSources = materials || [];
+
         internalContext = ragResults
-          .map((result, idx) => `[Internal Source ${idx + 1}]: ${result.chunk_text}`)
+          .map((result, idx) => {
+            const material = materials?.find(m => m.id === result.material_id);
+            const source = material ? `${material.title} (${material.category})` : `Source ${idx + 1}`;
+            return `[Internal Material: ${source}]\n${result.chunk_text}\n[Similarity: ${(result.similarity * 100).toFixed(1)}%]`;
+          })
           .join('\n\n');
-        console.log(`✅ Retrieved ${ragResults.length} internal chunks`);
+        console.log(`✅ Retrieved ${ragResults.length} chunks from ${materialSources.length} uploaded materials`);
       } else {
         console.log('ℹ️ No internal context found');
         internalContext = 'No relevant internal materials found.';
@@ -88,99 +103,131 @@ const generateMaterial = async (req, res) => {
     if (type === 'Theory') {
       systemPrompt = `You are an expert Professor specializing in creating comprehensive, structured lecture notes.
 
-Your task is to synthesize information from both internal course materials and external knowledge sources (Wikipedia) to create high-quality educational content.
+Your PRIMARY task is to create educational content based on UPLOADED COURSE MATERIALS. External sources should only supplement gaps.
 
-IMPORTANT CITATION RULES:
-- When using information from Internal Sources, cite as [Internal: Source X]
-- When using information from External Sources, cite as [External: Wikipedia]
-- Combine both sources intelligently to create comprehensive content
-- Clearly indicate which facts come from which source
-- If sources conflict, present both perspectives
+CRITICAL PRIORITY RULES:
+1. **PRIORITIZE INTERNAL MATERIALS**: Base your content primarily on uploaded course materials
+2. **Use Wikipedia ONLY to fill gaps**: Only use external sources when internal materials lack information
+3. **MANDATORY SOURCE CITATIONS**: Every fact MUST cite its source
+   - Internal materials: [Source: Material Name - Category]
+   - External sources: [External: Wikipedia - URL]
+4. **Images & Diagrams**: When helpful, include:
+   - Markdown image syntax: ![Description](url)
+   - Mermaid diagrams for concepts/flows
+   - Suggest relevant diagrams with placeholders
 
-OUTPUT FORMAT (Markdown):
+OUTPUT FORMAT (Markdown with Rich Content):
 # ${topic}
 
 ## Overview
-[Brief introduction - cite sources]
+[Brief introduction with source citations]
+[Include relevant image if helpful: ![diagram](url)]
 
 ## Key Concepts
-[Main concepts with citations]
+[Main concepts - MUST cite uploaded materials]
 
 ## Detailed Explanation
-[In-depth content with proper citations]
+[In-depth content from uploaded materials with citations]
+[Include mermaid diagrams for complex concepts]
+
+## Visual Aids
+[Diagrams, flowcharts using mermaid syntax]
 
 ## Examples
-[Practical examples if applicable]
+[Practical examples from uploaded materials]
 
 ## Summary
-[Key takeaways]
+[Key takeaways with citations]
 
-## Sources Used
-[List which sources (Internal/External) were most helpful]`;
+## References
+### Primary Sources (Uploaded Materials)
+[List internal materials used]
+### Supplementary Sources
+[List external sources only if used]`;
 
-      userPrompt = `Create comprehensive lecture notes on the topic: "${topic}"
+      userPrompt = `Create comprehensive lecture notes on "${topic}" based PRIMARILY on our uploaded course materials.
 
-**Internal Context (from our course materials):**
+**PRIMARY SOURCES (Uploaded Course Materials - USE THESE FIRST):**
 ${internalContext}
 
-**External Context (from Wikipedia):**
+**SUPPLEMENTARY SOURCE (Use ONLY if needed):**
 ${externalContext}
 
-Generate well-structured, educational content that synthesizes both sources. Use proper citations throughout.`;
+**INSTRUCTIONS:**
+- Build content primarily from uploaded materials
+- Include diagrams/images where helpful (use mermaid for diagrams)
+- Cite every fact with its source
+- Only use Wikipedia to fill gaps not covered by uploaded materials
+- Make it visually engaging with proper markdown formatting`;
 
     } else {
       // Lab type
       systemPrompt = `You are an expert Lab Instructor specializing in creating hands-on coding exercises.
 
-Your task is to create practical, executable code exercises with solutions based on the topic.
+Your PRIMARY task is to create exercises based on UPLOADED COURSE MATERIALS and examples.
 
-IMPORTANT REQUIREMENTS:
-- Generate WORKING, executable code (Python preferred, but adapt to topic)
-- Include detailed comments explaining each step
-- Cite which concepts come from [Internal: Source X] or [External: Wikipedia]
-- Ensure strict syntax correctness - code must run without errors
-- Include both the exercise (with TODOs) and complete solution
+CRITICAL PRIORITY RULES:
+1. **PRIORITIZE INTERNAL MATERIALS**: Base exercises on uploaded course content and code examples
+2. **Use Wikipedia ONLY to fill gaps**: External sources only when internal materials are insufficient
+3. **MANDATORY CITATIONS**: Cite sources in code comments and documentation
+4. **WORKING CODE**: All code must be syntactically correct and executable
+5. **Visual Aids**: Include flowcharts/diagrams using mermaid syntax
 
-OUTPUT FORMAT (Markdown):
+OUTPUT FORMAT (Markdown with Visuals):
 # Lab Exercise: ${topic}
 
 ## Objective
-[What students will learn - cite sources]
+[What students will learn - cite uploaded materials]
 
 ## Prerequisites
-[Required knowledge]
+[Required knowledge from uploaded materials]
+
+## Conceptual Diagram
+[Mermaid flowchart showing the solution approach]
 
 ## Exercise Instructions
-[Step-by-step instructions]
+[Step-by-step based on uploaded materials]
 
 ## Starter Code
 \`\`\`python
 # TODO: Students complete this
-# Concept from [Internal/External]: ...
+# Based on [Source: Material Name]
 \`\`\`
 
 ## Complete Solution
 \`\`\`python
-# Fully working code with citations in comments
+# Working code with citations
+# Concept from [Source: Material Name]
 \`\`\`
 
 ## Expected Output
 \`\`\`
-[Show what the program should output]
+[Program output]
 \`\`\`
 
-## Learning Points
-[Key concepts learned - cite sources]`;
+## Explanation Diagram
+[Mermaid diagram explaining the solution]
 
-      userPrompt = `Create a hands-on coding lab exercise for: "${topic}"
+## References
+### Primary Sources (Uploaded Materials)
+[Materials used]
+### Supplementary Sources
+[External sources if any]`;
 
-**Internal Context (from our course materials):**
+      userPrompt = `Create a hands-on coding lab for "${topic}" based PRIMARILY on uploaded course materials.
+
+**PRIMARY SOURCES (Uploaded Course Materials - USE THESE FIRST):**
 ${internalContext}
 
-**External Context (from Wikipedia):**
+**SUPPLEMENTARY SOURCE (Use ONLY if needed):**
 ${externalContext}
 
-Generate a complete lab exercise with starter code and solution. Ensure all code is syntactically correct and executable. Use proper citations in comments.`;
+**INSTRUCTIONS:**
+- Base exercise on uploaded materials and examples
+- Include flowcharts/diagrams using mermaid
+- Ensure code is executable and well-commented
+- Cite sources in comments
+- Only use Wikipedia to fill gaps`;
     }
 
     // ============================================
@@ -195,14 +242,28 @@ Generate a complete lab exercise with starter code and solution. Ensure all code
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 4000, // Increased for richer content with diagrams
     });
 
     const generatedContent = completion.choices[0].message.content;
     console.log(`✅ Content generated (${generatedContent.length} characters)`);
 
     // ============================================
-    // STEP 6: Save to Database
+    // STEP 6: Validate Generated Content (Part 4)
+    // ============================================
+    console.log('🔍 Running comprehensive content validation...');
+    const validationResults = await validateContent({
+      content: generatedContent,
+      topic: topic,
+      type: type,
+      materialSources: materialSources,
+      internalContext: internalContext,
+    });
+
+    console.log(`✅ Validation complete - Score: ${validationResults.overall?.overallScore || 'N/A'}%`);
+
+    // ============================================
+    // STEP 7: Save to Database
     // ============================================
     const fullPrompt = `SYSTEM:\n${systemPrompt}\n\nUSER:\n${userPrompt}`;
 
@@ -212,39 +273,42 @@ Generate a complete lab exercise with starter code and solution. Ensure all code
         prompt: fullPrompt,
         output_content: generatedContent,
         type: type,
-        is_validated: false,
+        is_validated: validationResults.success && validationResults.overall?.passesValidation,
+        validation_score: validationResults.overall?.overallScore || null,
+        validation_results: validationResults,
       })
-      .select()
-      .single();
+      .select();
 
     if (saveError) {
       console.error('❌ Database save error:', saveError);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to save generated material',
-        details: saveError.message,
-        content: generatedContent, // Still return content even if save fails
-      });
+      throw new Error('Failed to save generated material');
     }
 
-    console.log(`✅ Material saved with ID: ${savedRecord.id}`);
+    console.log(`✅ Material saved with ID: ${savedRecord[0].id}`);
 
     // ============================================
-    // STEP 7: Return Response
+    // Step 8: Return Response with Validation
     // ============================================
     return res.status(201).json({
       success: true,
       message: `${type} material generated successfully`,
       data: {
-        id: savedRecord.id,
+        id: savedRecord[0].id,
         topic: topic,
         type: type,
         content: generatedContent,
-        created_at: savedRecord.created_at,
+        created_at: savedRecord[0].created_at,
+        is_validated: validationResults.success && validationResults.overall?.passesValidation,
+        validation: validationResults,
         sources_used: {
           internal: internalContext !== 'No relevant internal materials found.',
           external: wikiData.success,
           wikipedia_url: wikiData.url,
+          materials: materialSources.map(m => ({
+            title: m.title,
+            category: m.category,
+            filename: m.file_name
+          })),
         },
       },
     });
@@ -341,8 +405,143 @@ const getGeneratedMaterialById = async (req, res) => {
   }
 };
 
+/**
+ * Export generated material as PDF
+ * GET /api/generate/:id/pdf
+ */
+const exportMaterialAsPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch the generated material
+    const { data: material, error } = await supabase
+      .from('generated_materials')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          error: 'Generated material not found',
+        });
+      }
+      throw new Error(error.message);
+    }
+
+    // Extract topic from content (first heading or use type)
+    const topicMatch = material.output_content.match(/^#\s+(.+)$/m);
+    const topic = topicMatch ? topicMatch[1] : `${material.type} Material`;
+
+    // Generate PDF
+    const { generatePDF } = require('../utils/pdfGenerator');
+    const pdfBuffer = await generatePDF(
+      material.output_content,
+      topic,
+      material.type
+    );
+
+    // Set response headers for PDF download
+    const filename = `${topic.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${material.type.toLowerCase()}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    console.log(`✅ PDF exported: ${filename}`);
+    return res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('❌ Error exporting PDF:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to export PDF',
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Re-validate a generated material
+ * POST /api/generate/:id/validate
+ */
+const revalidateMaterial = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🔍 Re-validating material ID: ${id}`);
+
+    // Fetch the generated material with original context
+    const { data: material, error } = await supabase
+      .from('generated_materials')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          error: 'Generated material not found',
+        });
+      }
+      throw new Error(error.message);
+    }
+
+    // Extract topic from content
+    const topicMatch = material.output_content.match(/^#\s+(.+)$/m);
+    const topic = topicMatch ? topicMatch[1] : `${material.type} Material`;
+
+    // Get material sources from validation_results if available
+    const previousValidation = material.validation_results;
+    const materialSources = previousValidation?.grounding?.materialsUsed || [];
+
+    // Run validation
+    const validationResults = await validateContent({
+      content: material.output_content,
+      topic: topic,
+      type: material.type,
+      materialSources: materialSources,
+      internalContext: '', // Not available for re-validation
+    });
+
+    // Update database with new validation results
+    const { error: updateError } = await supabase
+      .from('generated_materials')
+      .update({
+        is_validated: validationResults.success && validationResults.overall?.passesValidation,
+        validation_score: validationResults.overall?.overallScore || null,
+        validation_results: validationResults,
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    console.log(`✅ Material re-validated - Score: ${validationResults.overall?.overallScore}%`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Material re-validated successfully',
+      validation: validationResults,
+    });
+
+  } catch (error) {
+    console.error('❌ Re-validation error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to re-validate material',
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateMaterial,
   getGeneratedMaterials,
   getGeneratedMaterialById,
+  exportMaterialAsPDF,
+  revalidateMaterial,
 };

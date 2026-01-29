@@ -48,6 +48,9 @@ export function LabGenerator() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [showValidation, setShowValidation] = useState(true);
+  const [isRevalidating, setIsRevalidating] = useState(false);
   
   // History state
   const [history, setHistory] = useState([]);
@@ -109,6 +112,68 @@ export function LabGenerator() {
       await navigator.clipboard.writeText(generatedContent.content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!generatedContent?.id) return;
+    
+    setDownloadingPDF(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/generate/${generatedContent.id}/pdf`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/pdf',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to download PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${generatedContent.topic?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'material'}_${generatedContent.type.toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('PDF download error:', err);
+      setError('Failed to download PDF. Please try again.');
+    } finally {
+      setDownloadingPDF(false);
+    }
+  };
+
+  const handleRevalidate = async () => {
+    if (!generatedContent?.id) return;
+    
+    setIsRevalidating(true);
+    setError('');
+    
+    try {
+      const response = await revalidateMaterial(generatedContent.id);
+      
+      // Update the generated content with new validation results
+      setGeneratedContent({
+        ...generatedContent,
+        is_validated: response.validation.overall?.passesValidation,
+        validation: response.validation,
+      });
+      
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error('Re-validation error:', err);
+      setError('Failed to re-validate content. Please try again.');
+    } finally {
+      setIsRevalidating(false);
     }
   };
 
@@ -291,7 +356,47 @@ export function LabGenerator() {
                   </a>
                 )}
               </div>
+              
+              {(!generatedContent.sources_used?.internal && !generatedContent.sources_used?.external) && (
+                <p className="text-xs text-gray-500 italic">Generated from AI knowledge base</p>
+              )}
             </div>
+
+            {/* Validation Results Section */}
+            {generatedContent.validation && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-indigo-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">Content Validation</h3>
+                    {generatedContent.is_validated ? (
+                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                        ✓ Validated
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Needs Review
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowValidation(!showValidation)}
+                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                  >
+                    {showValidation ? 'Hide' : 'Show'} Validation Details
+                  </button>
+                </div>
+
+                {showValidation && (
+                  <ValidationResults
+                    validation={generatedContent.validation}
+                    onRevalidate={handleRevalidate}
+                    isRevalidating={isRevalidating}
+                  />
+                )}
+              </div>
+            )}
 
             {/* Rendered Content */}
             <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-code:text-foreground">
