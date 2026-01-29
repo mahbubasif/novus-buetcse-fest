@@ -15,6 +15,37 @@ const EMBEDDING_MODEL = 'text-embedding-004';
 // Model for text-to-speech
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
+// Model for video generation (Veo)
+// NOTE: Veo models (veo-2.0-generate, veo-3.1-generate) require Vertex AI's
+// specialized video generation endpoint (Predict method), NOT generateContent.
+// The standard @google/generative-ai SDK does not support Veo video generation.
+const VIDEO_MODEL = 'veo-2.0-generate-001';
+
+/**
+ * Generate video from text using Gemini (Veo)
+ * 
+ * IMPORTANT: Veo video generation is NOT supported via the standard generateContent API.
+ * It requires Google Cloud Vertex AI with the specialized video generation endpoint.
+ * This function will throw to trigger FFmpeg fallback.
+ * 
+ * For production Veo integration, use:
+ * - Vertex AI Video Generation API (aiplatform.googleapis.com)
+ * - Model: publishers/google/models/veo-2.0-generate-001
+ * - Method: predict (not generateContent)
+ * 
+ * @param {string} prompt - Prompt for video generation
+ * @param {string} outputPath - Path to save the video
+ * @returns {Promise<string>} - Path to the generated video
+ */
+const generateVideoGemini = async (prompt, outputPath) => {
+  // Veo video generation requires Vertex AI's specialized endpoint
+  // The @google/generative-ai SDK's generateContent does NOT support Veo models
+  // Throwing to trigger FFmpeg fallback in videoGenerator.js
+  console.log('🎥 Veo video generation requires Vertex AI (not supported via generateContent)');
+  console.log('📋 To enable Veo: Use Vertex AI SDK with aiplatform.googleapis.com/v1beta endpoint');
+  throw new Error('Veo requires Vertex AI - falling back to FFmpeg');
+};
+
 /**
  * Generate text content using Gemini
  * @param {string} prompt - Prompt for generation
@@ -22,7 +53,8 @@ const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
  */
 const generateTextGemini = async (prompt) => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Use gemini-2.0-flash (gemini-pro is deprecated)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
@@ -167,11 +199,13 @@ const generateAudioFromText = async (text, outputPath) => {
   }
 };
 
+
 module.exports = {
   getEmbeddingGemini,
   getEmbeddingsGemini,
   generateAudioFromText,
   generateTextGemini,
+  generateVideoGemini,
   EMBEDDING_MODEL,
   TTS_MODEL,
 };
