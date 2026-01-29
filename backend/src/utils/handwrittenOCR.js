@@ -8,8 +8,8 @@ const fs = require('fs');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Models for vision processing - using available 2.0 flash model
-const VISION_MODEL = 'gemini-2.0-flash';
+// Models for vision processing - using available 2.5 flash model
+const VISION_MODEL = 'gemini-2.5-flash';
 
 /**
  * Check if a file is an image (handwritten note)

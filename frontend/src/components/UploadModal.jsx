@@ -19,11 +19,18 @@ const allowedTypes = [
   'text/markdown',
   'text/html',
   'text/css',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
 ];
 
 const allowedExtensions = [
   '.pdf', '.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.c', '.cpp',
-  '.h', '.hpp', '.txt', '.md', '.json', '.xml', '.html', '.css', '.sql', '.sh', '.yaml', '.yml'
+  '.h', '.hpp', '.txt', '.md', '.json', '.xml', '.html', '.css', '.sql', '.sh', '.yaml', '.yml',
+  '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'
 ];
 
 export function UploadModal({ isOpen, onClose, onSuccess }) {
@@ -140,11 +147,11 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
         formData.append('metadata', JSON.stringify({ tags: tagsArray }));
       }
 
-      await uploadMaterial(formData);
+      const response = await uploadMaterial(formData);
       setSuccess(true);
       
       setTimeout(() => {
-        onSuccess?.();
+        onSuccess?.(response);
         handleClose();
       }, 1500);
     } catch (err) {
@@ -242,7 +249,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }) {
                       Drop your file here, or <span className="text-primary">browse</span>
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      PDF, code files, or text files (max 50MB)
+                      PDF, text, code, or images for OCR (max 50MB)
                     </p>
                   </div>
                 </div>
