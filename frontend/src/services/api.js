@@ -85,10 +85,53 @@ export const healthCheck = async () => {
   return response.data;
 };
 
+// ==================== RAG Endpoints ====================
+
+/**
+ * Semantic search materials using RAG
+ * @param {string} query - Search query
+ * @param {number} threshold - Similarity threshold (0-1)
+ * @param {number} limit - Maximum number of results
+ * @returns {Promise} API response with search results
+ */
+export const ragSearch = async (query, threshold = 0.5, limit = 10) => {
+  const response = await api.post('/rag/search', { query, threshold, limit });
+  return response.data;
+};
+
+/**
+ * Process a material to generate embeddings
+ * @param {number} materialId - Material ID to process
+ * @returns {Promise} API response
+ */
+export const processMaterial = async (materialId) => {
+  const response = await api.post(`/rag/process/${materialId}`);
+  return response.data;
+};
+
+/**
+ * Process all unprocessed materials
+ * @returns {Promise} API response
+ */
+export const processAllMaterials = async () => {
+  const response = await api.post('/rag/process-all');
+  return response.data;
+};
+
+/**
+ * Get processing status for a material
+ * @param {number} materialId - Material ID
+ * @returns {Promise} API response
+ */
+export const getMaterialStatus = async (materialId) => {
+  const response = await api.get(`/rag/status/${materialId}`);
+  return response.data;
+};
+
 // ==================== Future Endpoints ====================
 
 /**
- * Semantic search materials (RAG)
+ * Semantic search materials (Legacy - use ragSearch instead)
  * @param {string} query - Search query
  * @returns {Promise} API response with search results
  */

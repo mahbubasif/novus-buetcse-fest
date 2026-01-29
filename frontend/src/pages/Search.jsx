@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Search as SearchIcon, Sparkles, FileText, ArrowRight, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search as SearchIcon, Sparkles, FileText, ArrowRight, Loader2, TrendingUp, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
+import { ragSearch } from '../services/api';
 
 export function Search() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -15,34 +18,26 @@ export function Search() {
 
     setLoading(true);
     setSearched(true);
+    setError('');
     
-    // Simulate API call (replace with actual RAG search)
-    setTimeout(() => {
-      setResults([
-        {
-          id: 1,
-          title: 'Introduction to Machine Learning',
-          excerpt: 'Machine learning is a subset of artificial intelligence that focuses on building systems that learn from data...',
-          relevance: 95,
-          category: 'Theory',
-        },
-        {
-          id: 2,
-          title: 'Neural Networks Fundamentals',
-          excerpt: 'Neural networks are computing systems inspired by biological neural networks that constitute animal brains...',
-          relevance: 87,
-          category: 'Theory',
-        },
-        {
-          id: 3,
-          title: 'Python ML Lab Exercise',
-          excerpt: 'In this lab, we will implement a basic neural network from scratch using Python and NumPy...',
-          relevance: 72,
-          category: 'Lab',
-        },
-      ]);
+    try {
+      const response = await ragSearch(query, 0.3, 10); // Lower threshold for better results
+      setResults(response.results || []);
+      
+      if (!response.results || response.results.length === 0) {
+        setError('No results found. Try a different query or upload more materials.');
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+      setError('Search failed. Please try again.');
+      setResults([]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    setQuery(suggestion);
   };
 
   return (
@@ -92,17 +87,29 @@ export function Search() {
       {/* Search Suggestions */}
       {!searched && (
         <div className="flex flex-wrap justify-center gap-2">
-          {['What is machine learning?', 'Explain neural networks', 'Python data structures'].map(
-            (suggestion) => (
-              <button
-                key={suggestion}
-                onClick={() => setQuery(suggestion)}
-                className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                {suggestion}
-              </button>
-            )
-          )}
+          {[
+            'What is AI?',
+            'Explain algorithms',
+            'Python programming',
+            'Data structures',
+            'Machine learning basics'
+          ].map((suggestion) => (
+            <button
+              key={suggestion}
+              onClick={() => handleSuggestionClick(suggestion)}
+              className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && searched && !loading && (
+        <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
@@ -111,8 +118,14 @@ export function Search() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">
-              {loading ? 'Searching...' : `${results.length} results found`}
+              {loading ? 'Searching...' : `${results.length} result${results.length !== 1 ? 's' : ''} found`}
             </h2>
+            {results.length > 0 && !loading && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <TrendingUp className="w-4 h-4" />
+                <span>Sorted by relevance</span>
+              </div>
+            )}
           </div>
 
           {loading ? (
@@ -127,38 +140,49 @@ export function Search() {
                 </Card>
               ))}
             </div>
-          ) : (
+          ) : results.length > 0 ? (
             <div className="space-y-4">
-              {results.map((result) => (
-                <Card key={result.id} hover className="cursor-pointer">
-                  <CardContent>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FileText className="w-5 h-5 text-indigo-500" />
-                          <h3 className="font-semibold text-gray-900">{result.title}</h3>
-                          <span
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                              result.category === 'Theory'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-emerald-100 text-emerald-700'
-                            }`}
-                          >
-                            {result.category}
-                          </span>
+              {results.map((result, idx) => (
+                <Link key={idx} to={`/materials/${result.material_id}`}>
+                  <Card hover className="cursor-pointer transition-all hover:shadow-md">
+                    <CardContent>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <FileText className="w-5 h-5 text-indigo-500" />
+                            <h3 className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors">
+                              {result.material_title}
+                            </h3>
+                            <span
+                              className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                result.material_category === 'Theory'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-emerald-100 text-emerald-700'
+                              }`}
+                            >
+                              {result.material_category}
+                            </span>
+                          </div>
+                          <p className="text-gray-600 text-sm line-clamp-3 leading-relaxed">
+                            {result.chunk_text}
+                          </p>
                         </div>
-                        <p className="text-gray-600 text-sm line-clamp-2">{result.excerpt}</p>
+                        <div className="text-right flex-shrink-0">
+                          <div className="flex items-baseline gap-1">
+                            <div className="text-2xl font-bold text-indigo-600">
+                              {Math.round(result.similarity * 100)}
+                            </div>
+                            <div className="text-sm text-gray-500">%</div>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">match</div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-indigo-600">{result.relevance}%</div>
-                        <div className="text-xs text-gray-500">relevance</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </div>
