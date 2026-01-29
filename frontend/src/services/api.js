@@ -168,6 +168,16 @@ export const generateVideoSummary = async (id) => {
 };
 
 /**
+ * Get YouTube recommendations for a generated material topic
+ * @param {number|string} id - Generated material ID
+ * @returns {Promise} API response with YouTube search links
+ */
+export const getYoutubeRecommendations = async (id) => {
+  const response = await api.get(`/generate/${id}/youtube`);
+  return response.data;
+};
+
+/**
  * Process a material to generate embeddings
  * @param {number} materialId - Material ID to process
  * @returns {Promise} API response
@@ -280,6 +290,18 @@ export const chatGenerate = async (topic, type, conversationId = null) => {
  */
 export const chatSummarize = async (params) => {
   const response = await api.post('/chat/summarize', params);
+  return response.data;
+};
+
+/**
+ * Download chat response as PDF
+ * @param {string} content - Content to convert to PDF
+ * @returns {Promise} Blob response for PDF download
+ */
+export const downloadChatAsPDF = async (content) => {
+  const response = await api.post('/chat/download-pdf', { content }, {
+    responseType: 'blob',
+  });
   return response.data;
 };
 

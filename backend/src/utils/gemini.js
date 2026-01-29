@@ -16,6 +16,23 @@ const EMBEDDING_MODEL = 'text-embedding-004';
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 /**
+ * Generate text content using Gemini
+ * @param {string} prompt - Prompt for generation
+ * @returns {Promise<string>} - Generated text
+ */
+const generateTextGemini = async (prompt) => {
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error('❌ Gemini Generation Error:', error.message);
+    throw error;
+  }
+};
+
+/**
  * Generate embedding vector for given text using Gemini
  * @param {string} text - Text to generate embedding for
  * @returns {Promise<number[]>} - 768-dimensional embedding vector
@@ -154,6 +171,7 @@ module.exports = {
   getEmbeddingGemini,
   getEmbeddingsGemini,
   generateAudioFromText,
+  generateTextGemini,
   EMBEDDING_MODEL,
   TTS_MODEL,
 };

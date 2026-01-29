@@ -54,4 +54,11 @@ router.post('/generate', chatController.generateFromChat);
  */
 router.post('/summarize', chatController.summarizeMaterial);
 
+/**
+ * @route   POST /api/chat/download-pdf
+ * @desc    Download chat response as PDF
+ * @body    { content: string }
+ */
+router.post('/download-pdf', chatController.downloadAsPDF);
+
 module.exports = router;

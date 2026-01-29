@@ -765,6 +765,50 @@ const cleanupConversations = () => {
 // Run cleanup every 5 minutes
 setInterval(cleanupConversations, 5 * 60 * 1000);
 
+/**
+ * Download chat content as PDF
+ * POST /api/chat/download-pdf
+ */
+const downloadAsPDF = async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Content is required',
+      });
+    }
+
+    console.log('📄 Generating PDF for chat content...');
+
+    // Generate PDF
+    const { generatePDF } = require('../utils/pdfGenerator');
+    const pdfBuffer = await generatePDF(
+      'Chat Response',
+      content,
+      'Chat'
+    );
+
+    // Set response headers for PDF download
+    const filename = `chat_response_${Date.now()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    console.log(`✅ PDF exported: ${filename}`);
+    return res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('❌ Error generating PDF:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to generate PDF',
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   chat,
   getHistory,
@@ -773,4 +817,5 @@ module.exports = {
   quickSearch,
   generateFromChat,
   summarizeMaterial,
+  downloadAsPDF,
 };

@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Trash2, Copy, Check, MessageSquare, BookOpen, AlertCircle } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Trash2, Copy, Check, MessageSquare, BookOpen, AlertCircle, Download, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Badge } from '../components/ui/badge';
 import { cn } from '../lib/utils';
-import { sendChatMessage, clearChatHistory, startNewConversation } from '../services/api';
+import { sendChatMessage, clearChatHistory, startNewConversation, downloadChatAsPDF } from '../services/api';
 
 const suggestedQuestions = [
   'Explain the concept of backpropagation',
@@ -28,6 +28,7 @@ export function Chat() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
@@ -102,6 +103,26 @@ export function Chat() {
     await navigator.clipboard.writeText(content);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDownloadPDF = async (content, id) => {
+    setDownloadingId(id);
+    try {
+      const blob = await downloadChatAsPDF(content);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chat_response_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('PDF download error:', err);
+      setError('Failed to download PDF. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const clearChat = async () => {
@@ -197,18 +218,33 @@ export function Chat() {
                   {message.content}
                 </div>
                 
-                {/* Copy Button */}
+                {/* Action Buttons - Copy & Download PDF */}
                 {message.role === 'assistant' && !message.isError && (
-                  <button
-                    onClick={() => handleCopy(message.content, message.id)}
-                    className="absolute -right-10 top-2 p-1.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity rounded-lg hover:bg-muted"
-                  >
-                    {copiedId === message.id ? (
-                      <Check className="w-4 h-4 text-emerald-500" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </button>
+                  <div className="absolute -right-20 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleDownloadPDF(message.content, message.id)}
+                      disabled={downloadingId === message.id}
+                      className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted"
+                      title="Download as PDF"
+                    >
+                      {downloadingId === message.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleCopy(message.content, message.id)}
+                      className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted"
+                      title="Copy to clipboard"
+                    >
+                      {copiedId === message.id ? (
+                        <Check className="w-4 h-4 text-emerald-500" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
               

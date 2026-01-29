@@ -20,7 +20,8 @@ import {
   Video,
   Download,
   Play,
-  X
+  X,
+  Youtube
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -29,7 +30,7 @@ import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { ValidationResults } from '../components/ValidationResults';
-import { generateMaterial, getGeneratedHistory, revalidateMaterial, generateVideoSummary } from '../services/api';
+import { generateMaterial, getGeneratedHistory, revalidateMaterial, generateVideoSummary, getYoutubeRecommendations } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -63,6 +64,10 @@ export function LabGenerator() {
   const [generatingVideo, setGeneratingVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState(null);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  
+  // YouTube recommendations states
+  const [youtubeLinks, setYoutubeLinks] = useState([]);
+  const [loadingYoutube, setLoadingYoutube] = useState(false);
   
   // History state
   const [history, setHistory] = useState([]);
@@ -99,6 +104,8 @@ export function LabGenerator() {
     setError('');
     setSuccess(false);
     setGeneratedContent(null);
+    setYoutubeLinks([]);
+    setVideoUrl(null);
 
     try {
       const response = await generateMaterial(topic.trim(), type);
@@ -231,6 +238,25 @@ export function LabGenerator() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const handleGetYoutubeRecommendations = async () => {
+    if (!generatedContent?.id) return;
+    
+    setLoadingYoutube(true);
+    setYoutubeLinks([]);
+    
+    try {
+      const response = await getYoutubeRecommendations(generatedContent.id);
+      if (response.success && response.data?.youtubeLinks) {
+        setYoutubeLinks(response.data.youtubeLinks);
+      }
+    } catch (err) {
+      console.error('YouTube recommendations error:', err);
+      setError('Failed to get YouTube recommendations.');
+    } finally {
+      setLoadingYoutube(false);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -378,15 +404,36 @@ export function LabGenerator() {
                 Generated on {formatDate(generatedContent.created_at)}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyContent}
-              className="gap-1.5"
-            >
-              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadPDF}
+                disabled={downloadingPDF}
+                className="gap-1.5"
+              >
+                {downloadingPDF ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Download PDF
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyContent}
+                className="gap-1.5"
+              >
+                {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {/* Sources Used */}
@@ -518,7 +565,7 @@ export function LabGenerator() {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">Video Summary</h3>
-                    <p className="text-sm text-muted-foreground">Generate an AI-narrated video summary of this content</p>
+                    <p className="text-sm text-muted-foreground">Generate a quick 8-second visual summary</p>
                   </div>
                 </div>
                 <Button
@@ -580,14 +627,74 @@ export function LabGenerator() {
                       </video>
                       <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                         <p className="text-sm text-blue-800">
-                          <strong>💡 Tip:</strong> This video summary was generated using AI text-to-speech 
-                          (Gemini TTS) to create an audio narration of the content.
+                          <strong>💡 Tip:</strong> This is a quick 8-second visualization video showcasing the topic. 
+                          Perfect for quick revision!
                         </p>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
+
+              {/* YouTube Recommendations Section */}
+              <div className="mt-6 pt-4 border-t border-border/50">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-red-100">
+                      <Youtube className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">YouTube Recommendations</h3>
+                      <p className="text-sm text-muted-foreground">Find related educational videos on YouTube</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleGetYoutubeRecommendations}
+                    disabled={loadingYoutube}
+                    variant="outline"
+                    className="gap-2 border-red-200 hover:bg-red-50 hover:border-red-300"
+                  >
+                    {loadingYoutube ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Finding Videos...
+                      </>
+                    ) : (
+                      <>
+                        <Youtube className="w-4 h-4" />
+                        Get Recommendations
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* YouTube Links Display */}
+                {youtubeLinks.length > 0 && (
+                  <div className="space-y-3">
+                    {youtubeLinks.map((link, index) => (
+                      <a
+                        key={index}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-lg border border-red-200 bg-red-50/50 hover:bg-red-100/50 transition-colors group"
+                      >
+                        <div className="p-2 rounded-lg bg-red-100 group-hover:bg-red-200 transition-colors">
+                          <Youtube className="w-4 h-4 text-red-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground">{link.query}</p>
+                          <p className="text-xs text-muted-foreground truncate">{link.url}</p>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-red-600 transition-colors" />
+                      </a>
+                    ))}
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Click any link above to search YouTube for related videos
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

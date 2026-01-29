@@ -7,8 +7,7 @@ const supabase = require('../lib/supabase');
 const { getEmbedding } = require('../utils/openai');
 const { fetchWikipediaSummary } = require('../utils/externalContext');
 const { validateContent } = require('../utils/contentValidator');
-const { generateAudioFromText } = require('../utils/gemini');
-const { createVideoSummary, cleanupTempFiles } = require('../utils/videoGenerator');
+const { createQuickVideoSummary, cleanupTempFiles } = require('../utils/videoGenerator');
 const OpenAI = require('openai');
 const fs = require('fs');
 const path = require('path');
@@ -550,7 +549,7 @@ const generateVideoSummary = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log(`\n🎥 Generating video summary for material ID: ${id}`);
+    console.log(`\n🎥 Generating quick video for material ID: ${id}`);
 
     // Fetch the generated material
     const { data: material, error } = await supabase
@@ -573,91 +572,39 @@ const generateVideoSummary = async (req, res) => {
     const topicMatch = material.output_content.match(/^#\s+(.+)$/m);
     const topic = topicMatch ? topicMatch[1] : `${material.type} Material`;
 
-    // Prepare content for video (create a summary if too long)
-    let videoContent = material.output_content;
-
-    // If content is too long, create a summary for the video
-    if (videoContent.length > 3000) {
-      console.log('📝 Content is long, creating summary for video...');
-
-      const summaryPrompt = `Create a concise audio-friendly summary (2-3 minutes when spoken) of this educational content. 
-Focus on key points and make it engaging for audio narration. Remove markdown formatting and code blocks.
-
-Content:
-${material.output_content}
-
-Create a natural, conversational summary suitable for audio narration:`;
-
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert at creating concise, engaging audio summaries of educational content.',
-          },
-          { role: 'user', content: summaryPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
-      });
-
-      videoContent = completion.choices[0].message.content;
-      console.log(`✅ Summary created (${videoContent.length} characters)`);
-    }
-
-    // Clean up old temporary files before generating new video
+    // Clean up old temporary files
     cleanupTempFiles();
 
-    // Generate video
-    const videoResult = await createVideoSummary(
-      videoContent,
+    // Generate simple 8-second video (no complex filters)
+    const videoResult = await createQuickVideoSummary(
+      material.output_content,
       topic,
       material.type,
-      generateAudioFromText
+      []
     );
 
     if (!videoResult.success) {
       throw new Error('Video generation failed');
     }
 
-    // Update database with video path
-    const { error: updateError } = await supabase
-      .from('generated_materials')
-      .update({
-        video_path: videoResult.videoPath,
-        video_generated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-
-    if (updateError) {
-      console.warn('⚠️ Failed to update database with video path:', updateError.message);
-    }
-
-    console.log(`✅ Video summary generated successfully`);
+    console.log(`✅ Video generated (${videoResult.sizeFormatted})`);
 
     // Return the video file
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Content-Length', videoResult.size);
-    res.setHeader('Content-Disposition', `inline; filename="video_summary_${id}.mp4"`);
-    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Disposition', `inline; filename="video_${id}.mp4"`);
 
     const videoStream = fs.createReadStream(videoResult.videoPath);
     videoStream.pipe(res);
 
-    // Clean up the video file after sending (with delay to ensure completion)
+    // Clean up after sending
     videoStream.on('end', () => {
       setTimeout(() => {
         try {
           if (fs.existsSync(videoResult.videoPath)) {
             fs.unlinkSync(videoResult.videoPath);
-            if (videoResult.metadata.audioPath && fs.existsSync(videoResult.metadata.audioPath)) {
-              fs.unlinkSync(videoResult.metadata.audioPath);
-            }
-            console.log('🧹 Temporary files cleaned up');
           }
-        } catch (err) {
-          console.warn('⚠️ Failed to clean up temporary files:', err.message);
-        }
+        } catch (err) { }
       }, 1000);
     });
 
@@ -665,8 +612,93 @@ Create a natural, conversational summary suitable for audio narration:`;
     console.error('❌ Video generation error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to generate video summary',
+      error: 'Failed to generate video',
       details: error.message,
+    });
+  }
+};
+
+/**
+ * Get YouTube video recommendations for a topic
+ * GET /api/generate/:id/youtube
+ */
+const getYoutubeRecommendations = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch the generated material
+    const { data: material, error } = await supabase
+      .from('generated_materials')
+      .select('output_content, type')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      return res.status(404).json({
+        success: false,
+        error: 'Material not found',
+      });
+    }
+
+    // Extract topic from content (first heading)
+    const topicMatch = material.output_content?.match(/^#\s+(.+)$/m);
+    const topic = topicMatch ? topicMatch[1] : 'programming tutorial';
+
+    console.log(`📺 Getting YouTube recommendations for: ${topic}`);
+
+    // Use Gemini to generate search queries
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const prompt = `Generate exactly 3 YouTube search queries for learning about "${topic}" (${material.type} material).
+
+Return ONLY a JSON array of 3 strings, nothing else. Example format:
+["query 1", "query 2", "query 3"]`;
+
+    let searchQueries = [];
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) {
+        searchQueries = JSON.parse(match[0]);
+      }
+    } catch (e) {
+      console.log('Gemini parse error, using fallback:', e.message);
+    }
+
+    // Fallback queries if parsing failed
+    if (searchQueries.length === 0) {
+      searchQueries = [
+        `${topic} tutorial for beginners`,
+        `${topic} explained simply`,
+        `learn ${topic} step by step`
+      ];
+    }
+
+    // Create YouTube search URLs (format expected by frontend)
+    const youtubeLinks = searchQueries.slice(0, 3).map((query, i) => ({
+      id: i + 1,
+      query: query,
+      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,
+    }));
+
+    console.log(`✅ Generated ${youtubeLinks.length} YouTube recommendations`);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        topic: topic,
+        youtubeLinks: youtubeLinks,
+      },
+    });
+
+  } catch (error) {
+    console.error('❌ YouTube recommendations error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get recommendations',
     });
   }
 };
@@ -678,4 +710,5 @@ module.exports = {
   exportMaterialAsPDF,
   revalidateMaterial,
   generateVideoSummary,
+  getYoutubeRecommendations,
 };

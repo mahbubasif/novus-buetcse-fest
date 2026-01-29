@@ -390,7 +390,6 @@ ${JSON.stringify(groundingResults, null, 2)}
     "practicalValue": <0-10>
   },
   "overallScore": <average 0-10>,
-  "grade": "<A+/A/B/C/D/F>",
   "strengths": ["<strength 1>", "<strength 2>"],
   "weaknesses": ["<weakness 1>", "<weakness 2>"],
   "recommendations": ["<recommendation 1>", "<recommendation 2>"],

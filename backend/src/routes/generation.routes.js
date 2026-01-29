@@ -50,16 +50,21 @@ router.post('/:id/validate', generationController.revalidateMaterial);
 
 /**
  * @route   POST /api/generate/:id/video
- * @desc    Generate video summary for a generated material
+ * @desc    Generate quick video summary for a generated material
  * @access  Public
  * @param   id - Generated material ID
- * @returns Video file (MP4) with audio narration and visual background
- * 
- * @example
- * POST /api/generate/123/video
- * Returns: video/mp4 stream
+ * @returns Video file (MP4) - 8 seconds
  */
 router.post('/:id/video', generationController.generateVideoSummary);
+
+/**
+ * @route   GET /api/generate/:id/youtube
+ * @desc    Get YouTube video recommendations for the topic
+ * @access  Public
+ * @param   id - Generated material ID
+ * @returns JSON with YouTube search links
+ */
+router.get('/:id/youtube', generationController.getYoutubeRecommendations);
 
 /**
  * @route   GET /api/generate/:id
