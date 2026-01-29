@@ -337,4 +337,89 @@ export const getCurrentUser = async () => {
   return response.data;
 };
 
+// ==================== Community Forum Endpoints ====================
+
+/**
+ * Get all students for mentions
+ * @returns {Promise} API response with students list
+ */
+export const getStudentsForMention = async () => {
+  const response = await api.get('/community/students');
+  return response.data;
+};
+
+/**
+ * Get all forum posts
+ * @param {number} limit - Maximum number of posts
+ * @param {number} offset - Offset for pagination
+ * @returns {Promise} API response with posts
+ */
+export const getForumPosts = async (limit = 20, offset = 0) => {
+  const response = await api.get('/community/posts', { params: { limit, offset } });
+  return response.data;
+};
+
+/**
+ * Get a single post with comments
+ * @param {number} id - Post ID
+ * @returns {Promise} API response with post and comments
+ */
+export const getPostWithComments = async (id) => {
+  const response = await api.get(`/community/posts/${id}`);
+  return response.data;
+};
+
+/**
+ * Create a new forum post
+ * @param {Object} data - { title, content, userId, username, fullName, taggedStudent }
+ * @returns {Promise} API response with new post
+ */
+export const createForumPost = async (data) => {
+  const response = await api.post('/community/posts', data);
+  return response.data;
+};
+
+/**
+ * Add a comment to a post
+ * @param {number} postId - Post ID
+ * @param {Object} data - { content, userId, username, fullName, mentions }
+ * @returns {Promise} API response with new comment
+ */
+export const addPostComment = async (postId, data) => {
+  const response = await api.post(`/community/posts/${postId}/comments`, data);
+  return response.data;
+};
+
+/**
+ * Generate AI reply for a post
+ * @param {number} postId - Post ID
+ * @returns {Promise} API response with AI comment
+ */
+export const generateAIReply = async (postId) => {
+  const response = await api.post(`/community/posts/${postId}/ai-reply`);
+  return response.data;
+};
+
+/**
+ * Delete a forum post
+ * @param {number} id - Post ID
+ * @param {Object} data - { userId, isAdmin }
+ * @returns {Promise} API response
+ */
+export const deleteForumPost = async (id, data) => {
+  const response = await api.delete(`/community/posts/${id}`, { data });
+  return response.data;
+};
+
+/**
+ * Delete a comment
+ * @param {number} id - Comment ID
+ * @param {Object} data - { userId, isAdmin }
+ * @returns {Promise} API response
+ */
+export const deleteForumComment = async (id, data) => {
+  const response = await api.delete(`/community/comments/${id}`, { data });
+  return response.data;
+};
+
 export default api;

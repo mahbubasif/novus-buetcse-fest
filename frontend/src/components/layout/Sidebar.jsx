@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Smart Search', href: '/search', icon: Search },
   { name: 'AI Chat', href: '/chat', icon: MessageSquare },
   { name: 'Lab Generator', href: '/lab-generator', icon: FlaskConical },
+  { name: 'Community', href: '/community', icon: Users },
 ];
 
 const secondaryNav = [

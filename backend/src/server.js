@@ -74,6 +74,10 @@ app.use('/api/generate', generationRoutes);
 const chatRoutes = require('./routes/chat.routes');
 app.use('/api/chat', chatRoutes);
 
+// Community Routes (Student Chat)
+const communityRoutes = require('./routes/community.routes');
+app.use('/api/community', communityRoutes);
+
 // Legacy routes for backward compatibility
 app.post('/api/process-embedding/:id', (req, res) => {
   req.url = `/api/rag/process/${req.params.id}`;
