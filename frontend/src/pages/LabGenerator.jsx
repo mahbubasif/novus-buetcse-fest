@@ -14,7 +14,9 @@ import {
   Filter,
   Wand2,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Shield,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -22,7 +24,8 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
-import { generateMaterial, getGeneratedHistory } from '../services/api';
+import { ValidationResults } from '../components/ValidationResults';
+import { generateMaterial, getGeneratedHistory, revalidateMaterial } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
